@@ -1,0 +1,1424 @@
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 1
+
+
+   1              		.cpu cortex-m3
+   2              		.arch armv7-m
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.file	"ad9518.c"
+  14              		.text
+  15              	.Ltext0:
+  16              		.cfi_sections	.debug_frame
+  17              		.file 1 "Core/Src/ad9518.c"
+  18              		.section	.text.divider_to_reg,"ax",%progbits
+  19              		.align	1
+  20              		.syntax unified
+  21              		.thumb
+  22              		.thumb_func
+  24              	divider_to_reg:
+  25              	.LVL0:
+  26              	.LFB4:
+   1:Core/Src/ad9518.c **** #include "ad9518.h"
+   2:Core/Src/ad9518.c **** 
+   3:Core/Src/ad9518.c **** /* ---- low level ---------------------------------------------------------- */
+   4:Core/Src/ad9518.c **** 
+   5:Core/Src/ad9518.c **** int ad9518_reg_write(ad9518_dev_t *d, uint16_t reg, uint8_t val)
+   6:Core/Src/ad9518.c **** {
+   7:Core/Src/ad9518.c ****     uint16_t cmd = AD9518_WRITE | AD9518_CNT(1) | AD9518_ADDR(reg);
+   8:Core/Src/ad9518.c ****     uint8_t buf[3] = {(uint8_t)(cmd >> 8), (uint8_t)(cmd & 0xFF), val};
+   9:Core/Src/ad9518.c ****     return d->spi_write(buf, 3);
+  10:Core/Src/ad9518.c **** }
+  11:Core/Src/ad9518.c **** 
+  12:Core/Src/ad9518.c **** int ad9518_reg_read(ad9518_dev_t *d, uint16_t reg, uint8_t *val)
+  13:Core/Src/ad9518.c **** {
+  14:Core/Src/ad9518.c ****     uint16_t cmd = AD9518_READ | AD9518_CNT(1) | AD9518_ADDR(reg);
+  15:Core/Src/ad9518.c ****     uint8_t tx[2] = {(uint8_t)(cmd >> 8), (uint8_t)(cmd & 0xFF)};
+  16:Core/Src/ad9518.c ****     return d->spi_read(tx, 2, val, 1);
+  17:Core/Src/ad9518.c **** }
+  18:Core/Src/ad9518.c **** 
+  19:Core/Src/ad9518.c **** int ad9518_update(ad9518_dev_t *d)
+  20:Core/Src/ad9518.c **** {
+  21:Core/Src/ad9518.c ****     return ad9518_reg_write(d, AD9518_TRANSFER, AD9518_TRANSFER_NOW);
+  22:Core/Src/ad9518.c **** }
+  23:Core/Src/ad9518.c **** 
+  24:Core/Src/ad9518.c **** int ad9518_read_part_id(ad9518_dev_t *d, uint8_t *id)
+  25:Core/Src/ad9518.c **** {
+  26:Core/Src/ad9518.c ****     return ad9518_reg_read(d, AD9518_PARTID, id);
+  27:Core/Src/ad9518.c **** }
+  28:Core/Src/ad9518.c **** 
+  29:Core/Src/ad9518.c **** /* ---- helpers ------------------------------------------------------------ */
+  30:Core/Src/ad9518.c **** 
+  31:Core/Src/ad9518.c **** /* divider = (LO+1)+(HI+1) = LO+HI+2, split as evenly as possible.
+  32:Core/Src/ad9518.c ****  * Reg byte = (HI<<4)|LO. Divider 1 uses the bypass bit instead. */
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 2
+
+
+  33:Core/Src/ad9518.c **** static void divider_to_reg(uint8_t div, uint8_t *reg_lohi, int *bypass)
+  34:Core/Src/ad9518.c **** {
+  27              		.loc 1 34 1 view -0
+  28              		.cfi_startproc
+  29              		@ args = 0, pretend = 0, frame = 0
+  30              		@ frame_needed = 0, uses_anonymous_args = 0
+  31              		@ link register save eliminated.
+  35:Core/Src/ad9518.c ****     if (div <= 1)
+  32              		.loc 1 35 5 view .LVU1
+  33              		.loc 1 35 8 is_stmt 0 view .LVU2
+  34 0000 0128     		cmp	r0, #1
+  35 0002 14D9     		bls	.L8
+  36:Core/Src/ad9518.c ****     {
+  37:Core/Src/ad9518.c ****         *bypass = 1;
+  38:Core/Src/ad9518.c ****         *reg_lohi = 0;
+  39:Core/Src/ad9518.c ****         return;
+  40:Core/Src/ad9518.c ****     }
+  41:Core/Src/ad9518.c ****     *bypass = 0;
+  36              		.loc 1 41 5 is_stmt 1 view .LVU3
+  37              		.loc 1 41 13 is_stmt 0 view .LVU4
+  38 0004 0023     		movs	r3, #0
+  39 0006 1360     		str	r3, [r2]
+  42:Core/Src/ad9518.c ****     uint8_t hi = div / 2 - 1;
+  40              		.loc 1 42 5 is_stmt 1 view .LVU5
+  41              		.loc 1 42 26 is_stmt 0 view .LVU6
+  42 0008 4308     		lsrs	r3, r0, #1
+  43              		.loc 1 42 13 view .LVU7
+  44 000a 013B     		subs	r3, r3, #1
+  45 000c DBB2     		uxtb	r3, r3
+  46              	.LVL1:
+  43:Core/Src/ad9518.c ****     uint8_t lo = hi + (div & 1);
+  47              		.loc 1 43 5 is_stmt 1 view .LVU8
+  48              		.loc 1 43 28 is_stmt 0 view .LVU9
+  49 000e 00F00100 		and	r0, r0, #1
+  50              	.LVL2:
+  51              		.loc 1 43 13 view .LVU10
+  52 0012 1844     		add	r0, r0, r3
+  53 0014 C0B2     		uxtb	r0, r0
+  54              	.LVL3:
+  44:Core/Src/ad9518.c ****     if (hi > 15)
+  55              		.loc 1 44 5 is_stmt 1 view .LVU11
+  56              		.loc 1 44 8 is_stmt 0 view .LVU12
+  57 0016 0F2B     		cmp	r3, #15
+  58 0018 00D9     		bls	.L4
+  45:Core/Src/ad9518.c ****         hi = 15;
+  59              		.loc 1 45 12 view .LVU13
+  60 001a 0F23     		movs	r3, #15
+  61              	.LVL4:
+  62              	.L4:
+  46:Core/Src/ad9518.c ****     if (lo > 15)
+  63              		.loc 1 46 5 is_stmt 1 view .LVU14
+  64              		.loc 1 46 8 is_stmt 0 view .LVU15
+  65 001c 0F28     		cmp	r0, #15
+  66 001e 00D9     		bls	.L5
+  47:Core/Src/ad9518.c ****         lo = 15;
+  67              		.loc 1 47 12 view .LVU16
+  68 0020 0F20     		movs	r0, #15
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 3
+
+
+  69              	.LVL5:
+  70              	.L5:
+  48:Core/Src/ad9518.c ****     *reg_lohi = (uint8_t)((hi << 4) | (lo & 0x0F));
+  71              		.loc 1 48 5 is_stmt 1 view .LVU17
+  72              		.loc 1 48 17 is_stmt 0 view .LVU18
+  73 0022 00F00F00 		and	r0, r0, #15
+  74              	.LVL6:
+  75              		.loc 1 48 17 view .LVU19
+  76 0026 40EA0310 		orr	r0, r0, r3, lsl #4
+  77              		.loc 1 48 15 view .LVU20
+  78 002a 0870     		strb	r0, [r1]
+  49:Core/Src/ad9518.c **** }
+  79              		.loc 1 49 1 view .LVU21
+  80 002c 7047     		bx	lr
+  81              	.LVL7:
+  82              	.L8:
+  37:Core/Src/ad9518.c ****         *reg_lohi = 0;
+  83              		.loc 1 37 9 is_stmt 1 view .LVU22
+  37:Core/Src/ad9518.c ****         *reg_lohi = 0;
+  84              		.loc 1 37 17 is_stmt 0 view .LVU23
+  85 002e 0123     		movs	r3, #1
+  86 0030 1360     		str	r3, [r2]
+  38:Core/Src/ad9518.c ****         return;
+  87              		.loc 1 38 9 is_stmt 1 view .LVU24
+  38:Core/Src/ad9518.c ****         return;
+  88              		.loc 1 38 19 is_stmt 0 view .LVU25
+  89 0032 0023     		movs	r3, #0
+  90 0034 0B70     		strb	r3, [r1]
+  39:Core/Src/ad9518.c ****     }
+  91              		.loc 1 39 9 is_stmt 1 view .LVU26
+  92 0036 7047     		bx	lr
+  93              		.cfi_endproc
+  94              	.LFE4:
+  96              		.section	.text.ad9518_reg_write,"ax",%progbits
+  97              		.align	1
+  98              		.global	ad9518_reg_write
+  99              		.syntax unified
+ 100              		.thumb
+ 101              		.thumb_func
+ 103              	ad9518_reg_write:
+ 104              	.LVL8:
+ 105              	.LFB0:
+   6:Core/Src/ad9518.c ****     uint16_t cmd = AD9518_WRITE | AD9518_CNT(1) | AD9518_ADDR(reg);
+ 106              		.loc 1 6 1 view -0
+ 107              		.cfi_startproc
+ 108              		@ args = 0, pretend = 0, frame = 8
+ 109              		@ frame_needed = 0, uses_anonymous_args = 0
+   6:Core/Src/ad9518.c ****     uint16_t cmd = AD9518_WRITE | AD9518_CNT(1) | AD9518_ADDR(reg);
+ 110              		.loc 1 6 1 is_stmt 0 view .LVU28
+ 111 0000 00B5     		push	{lr}
+ 112              	.LCFI0:
+ 113              		.cfi_def_cfa_offset 4
+ 114              		.cfi_offset 14, -4
+ 115 0002 83B0     		sub	sp, sp, #12
+ 116              	.LCFI1:
+ 117              		.cfi_def_cfa_offset 16
+   7:Core/Src/ad9518.c ****     uint8_t buf[3] = {(uint8_t)(cmd >> 8), (uint8_t)(cmd & 0xFF), val};
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 4
+
+
+ 118              		.loc 1 7 5 is_stmt 1 view .LVU29
+ 119              	.LVL9:
+   8:Core/Src/ad9518.c ****     return d->spi_write(buf, 3);
+ 120              		.loc 1 8 5 view .LVU30
+   8:Core/Src/ad9518.c ****     return d->spi_write(buf, 3);
+ 121              		.loc 1 8 23 is_stmt 0 view .LVU31
+ 122 0004 C1F30323 		ubfx	r3, r1, #8, #4
+   8:Core/Src/ad9518.c ****     return d->spi_write(buf, 3);
+ 123              		.loc 1 8 13 view .LVU32
+ 124 0008 8DF80430 		strb	r3, [sp, #4]
+ 125 000c 8DF80510 		strb	r1, [sp, #5]
+ 126 0010 8DF80620 		strb	r2, [sp, #6]
+   9:Core/Src/ad9518.c **** }
+ 127              		.loc 1 9 5 is_stmt 1 view .LVU33
+   9:Core/Src/ad9518.c **** }
+ 128              		.loc 1 9 13 is_stmt 0 view .LVU34
+ 129 0014 0368     		ldr	r3, [r0]
+   9:Core/Src/ad9518.c **** }
+ 130              		.loc 1 9 12 view .LVU35
+ 131 0016 0321     		movs	r1, #3
+ 132              	.LVL10:
+   9:Core/Src/ad9518.c **** }
+ 133              		.loc 1 9 12 view .LVU36
+ 134 0018 01A8     		add	r0, sp, #4
+ 135              	.LVL11:
+   9:Core/Src/ad9518.c **** }
+ 136              		.loc 1 9 12 view .LVU37
+ 137 001a 9847     		blx	r3
+ 138              	.LVL12:
+  10:Core/Src/ad9518.c **** 
+ 139              		.loc 1 10 1 view .LVU38
+ 140 001c 03B0     		add	sp, sp, #12
+ 141              	.LCFI2:
+ 142              		.cfi_def_cfa_offset 4
+ 143              		@ sp needed
+ 144 001e 5DF804FB 		ldr	pc, [sp], #4
+ 145              		.cfi_endproc
+ 146              	.LFE0:
+ 148              		.section	.text.ad9518_reg_read,"ax",%progbits
+ 149              		.align	1
+ 150              		.global	ad9518_reg_read
+ 151              		.syntax unified
+ 152              		.thumb
+ 153              		.thumb_func
+ 155              	ad9518_reg_read:
+ 156              	.LVL13:
+ 157              	.LFB1:
+  13:Core/Src/ad9518.c ****     uint16_t cmd = AD9518_READ | AD9518_CNT(1) | AD9518_ADDR(reg);
+ 158              		.loc 1 13 1 is_stmt 1 view -0
+ 159              		.cfi_startproc
+ 160              		@ args = 0, pretend = 0, frame = 8
+ 161              		@ frame_needed = 0, uses_anonymous_args = 0
+  13:Core/Src/ad9518.c ****     uint16_t cmd = AD9518_READ | AD9518_CNT(1) | AD9518_ADDR(reg);
+ 162              		.loc 1 13 1 is_stmt 0 view .LVU40
+ 163 0000 10B5     		push	{r4, lr}
+ 164              	.LCFI3:
+ 165              		.cfi_def_cfa_offset 8
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 5
+
+
+ 166              		.cfi_offset 4, -8
+ 167              		.cfi_offset 14, -4
+ 168 0002 82B0     		sub	sp, sp, #8
+ 169              	.LCFI4:
+ 170              		.cfi_def_cfa_offset 16
+  14:Core/Src/ad9518.c ****     uint8_t tx[2] = {(uint8_t)(cmd >> 8), (uint8_t)(cmd & 0xFF)};
+ 171              		.loc 1 14 5 is_stmt 1 view .LVU41
+  14:Core/Src/ad9518.c ****     uint8_t tx[2] = {(uint8_t)(cmd >> 8), (uint8_t)(cmd & 0xFF)};
+ 172              		.loc 1 14 50 is_stmt 0 view .LVU42
+ 173 0004 C1F30B01 		ubfx	r1, r1, #0, #12
+ 174              	.LVL14:
+  14:Core/Src/ad9518.c ****     uint8_t tx[2] = {(uint8_t)(cmd >> 8), (uint8_t)(cmd & 0xFF)};
+ 175              		.loc 1 14 14 view .LVU43
+ 176 0008 41F40041 		orr	r1, r1, #32768
+ 177              	.LVL15:
+  15:Core/Src/ad9518.c ****     return d->spi_read(tx, 2, val, 1);
+ 178              		.loc 1 15 5 is_stmt 1 view .LVU44
+  15:Core/Src/ad9518.c ****     return d->spi_read(tx, 2, val, 1);
+ 179              		.loc 1 15 22 is_stmt 0 view .LVU45
+ 180 000c 0B0A     		lsrs	r3, r1, #8
+  15:Core/Src/ad9518.c ****     return d->spi_read(tx, 2, val, 1);
+ 181              		.loc 1 15 13 view .LVU46
+ 182 000e 8DF80430 		strb	r3, [sp, #4]
+ 183 0012 8DF80510 		strb	r1, [sp, #5]
+  16:Core/Src/ad9518.c **** }
+ 184              		.loc 1 16 5 is_stmt 1 view .LVU47
+  16:Core/Src/ad9518.c **** }
+ 185              		.loc 1 16 13 is_stmt 0 view .LVU48
+ 186 0016 4468     		ldr	r4, [r0, #4]
+  16:Core/Src/ad9518.c **** }
+ 187              		.loc 1 16 12 view .LVU49
+ 188 0018 0123     		movs	r3, #1
+ 189 001a 0221     		movs	r1, #2
+ 190              	.LVL16:
+  16:Core/Src/ad9518.c **** }
+ 191              		.loc 1 16 12 view .LVU50
+ 192 001c 01A8     		add	r0, sp, #4
+ 193              	.LVL17:
+  16:Core/Src/ad9518.c **** }
+ 194              		.loc 1 16 12 view .LVU51
+ 195 001e A047     		blx	r4
+ 196              	.LVL18:
+  17:Core/Src/ad9518.c **** 
+ 197              		.loc 1 17 1 view .LVU52
+ 198 0020 02B0     		add	sp, sp, #8
+ 199              	.LCFI5:
+ 200              		.cfi_def_cfa_offset 8
+ 201              		@ sp needed
+ 202 0022 10BD     		pop	{r4, pc}
+ 203              		.cfi_endproc
+ 204              	.LFE1:
+ 206              		.section	.text.ad9518_update,"ax",%progbits
+ 207              		.align	1
+ 208              		.global	ad9518_update
+ 209              		.syntax unified
+ 210              		.thumb
+ 211              		.thumb_func
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 6
+
+
+ 213              	ad9518_update:
+ 214              	.LVL19:
+ 215              	.LFB2:
+  20:Core/Src/ad9518.c ****     return ad9518_reg_write(d, AD9518_TRANSFER, AD9518_TRANSFER_NOW);
+ 216              		.loc 1 20 1 is_stmt 1 view -0
+ 217              		.cfi_startproc
+ 218              		@ args = 0, pretend = 0, frame = 0
+ 219              		@ frame_needed = 0, uses_anonymous_args = 0
+  20:Core/Src/ad9518.c ****     return ad9518_reg_write(d, AD9518_TRANSFER, AD9518_TRANSFER_NOW);
+ 220              		.loc 1 20 1 is_stmt 0 view .LVU54
+ 221 0000 08B5     		push	{r3, lr}
+ 222              	.LCFI6:
+ 223              		.cfi_def_cfa_offset 8
+ 224              		.cfi_offset 3, -8
+ 225              		.cfi_offset 14, -4
+  21:Core/Src/ad9518.c **** }
+ 226              		.loc 1 21 5 is_stmt 1 view .LVU55
+  21:Core/Src/ad9518.c **** }
+ 227              		.loc 1 21 12 is_stmt 0 view .LVU56
+ 228 0002 0122     		movs	r2, #1
+ 229 0004 40F23221 		movw	r1, #562
+ 230 0008 FFF7FEFF 		bl	ad9518_reg_write
+ 231              	.LVL20:
+  22:Core/Src/ad9518.c **** 
+ 232              		.loc 1 22 1 view .LVU57
+ 233 000c 08BD     		pop	{r3, pc}
+ 234              		.cfi_endproc
+ 235              	.LFE2:
+ 237              		.section	.text.ad9518_read_part_id,"ax",%progbits
+ 238              		.align	1
+ 239              		.global	ad9518_read_part_id
+ 240              		.syntax unified
+ 241              		.thumb
+ 242              		.thumb_func
+ 244              	ad9518_read_part_id:
+ 245              	.LVL21:
+ 246              	.LFB3:
+  25:Core/Src/ad9518.c ****     return ad9518_reg_read(d, AD9518_PARTID, id);
+ 247              		.loc 1 25 1 is_stmt 1 view -0
+ 248              		.cfi_startproc
+ 249              		@ args = 0, pretend = 0, frame = 0
+ 250              		@ frame_needed = 0, uses_anonymous_args = 0
+  25:Core/Src/ad9518.c ****     return ad9518_reg_read(d, AD9518_PARTID, id);
+ 251              		.loc 1 25 1 is_stmt 0 view .LVU59
+ 252 0000 08B5     		push	{r3, lr}
+ 253              	.LCFI7:
+ 254              		.cfi_def_cfa_offset 8
+ 255              		.cfi_offset 3, -8
+ 256              		.cfi_offset 14, -4
+ 257 0002 0A46     		mov	r2, r1
+  26:Core/Src/ad9518.c **** }
+ 258              		.loc 1 26 5 is_stmt 1 view .LVU60
+  26:Core/Src/ad9518.c **** }
+ 259              		.loc 1 26 12 is_stmt 0 view .LVU61
+ 260 0004 0321     		movs	r1, #3
+ 261              	.LVL22:
+  26:Core/Src/ad9518.c **** }
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 7
+
+
+ 262              		.loc 1 26 12 view .LVU62
+ 263 0006 FFF7FEFF 		bl	ad9518_reg_read
+ 264              	.LVL23:
+  27:Core/Src/ad9518.c **** 
+ 265              		.loc 1 27 1 view .LVU63
+ 266 000a 08BD     		pop	{r3, pc}
+ 267              		.cfi_endproc
+ 268              	.LFE3:
+ 270              		.section	.text.ad9518_init,"ax",%progbits
+ 271              		.align	1
+ 272              		.global	ad9518_init
+ 273              		.syntax unified
+ 274              		.thumb
+ 275              		.thumb_func
+ 277              	ad9518_init:
+ 278              	.LVL24:
+ 279              	.LFB5:
+  50:Core/Src/ad9518.c **** 
+  51:Core/Src/ad9518.c **** /* ---- init: fixed 2000 MHz VCO ------------------------------------------- */
+  52:Core/Src/ad9518.c **** 
+  53:Core/Src/ad9518.c **** int ad9518_init(ad9518_dev_t *d, int four_wire)
+  54:Core/Src/ad9518.c **** {
+ 280              		.loc 1 54 1 is_stmt 1 view -0
+ 281              		.cfi_startproc
+ 282              		@ args = 0, pretend = 0, frame = 0
+ 283              		@ frame_needed = 0, uses_anonymous_args = 0
+ 284              		.loc 1 54 1 is_stmt 0 view .LVU65
+ 285 0000 38B5     		push	{r3, r4, r5, lr}
+ 286              	.LCFI8:
+ 287              		.cfi_def_cfa_offset 16
+ 288              		.cfi_offset 3, -16
+ 289              		.cfi_offset 4, -12
+ 290              		.cfi_offset 5, -8
+ 291              		.cfi_offset 14, -4
+ 292 0002 0446     		mov	r4, r0
+  55:Core/Src/ad9518.c ****     int ret;
+ 293              		.loc 1 55 5 is_stmt 1 view .LVU66
+  56:Core/Src/ad9518.c ****     uint8_t conf = AD9518_LONG_INSTR | (four_wire ? AD9518_SDO_ACTIVE : 0);
+ 294              		.loc 1 56 5 view .LVU67
+ 295              		.loc 1 56 13 is_stmt 0 view .LVU68
+ 296 0004 0029     		cmp	r1, #0
+ 297 0006 00F08D80 		beq	.L20
+ 298              		.loc 1 56 13 discriminator 1 view .LVU69
+ 299 000a 9925     		movs	r5, #153
+ 300              	.L18:
+ 301              	.LVL25:
+  57:Core/Src/ad9518.c **** 
+  58:Core/Src/ad9518.c ****     /* 1. Soft reset then normal serial config (3-wire: no SDO-active bit) */
+  59:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_SERCONF, conf | AD9518_SOFT_RESET);
+ 302              		.loc 1 59 5 is_stmt 1 view .LVU70
+ 303              		.loc 1 59 11 is_stmt 0 view .LVU71
+ 304 000c 45F02402 		orr	r2, r5, #36
+ 305 0010 0021     		movs	r1, #0
+ 306              	.LVL26:
+ 307              		.loc 1 59 11 view .LVU72
+ 308 0012 2046     		mov	r0, r4
+ 309              	.LVL27:
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 8
+
+
+ 310              		.loc 1 59 11 view .LVU73
+ 311 0014 FFF7FEFF 		bl	ad9518_reg_write
+ 312              	.LVL28:
+  60:Core/Src/ad9518.c ****     if (ret < 0)
+ 313              		.loc 1 60 5 is_stmt 1 view .LVU74
+ 314              		.loc 1 60 8 is_stmt 0 view .LVU75
+ 315 0018 0028     		cmp	r0, #0
+ 316              		.loc 1 60 8 view .LVU76
+ 317 001a C0F28280 		blt	.L17
+  61:Core/Src/ad9518.c ****         return ret;
+  62:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_SERCONF, conf);
+ 318              		.loc 1 62 5 is_stmt 1 view .LVU77
+ 319              		.loc 1 62 11 is_stmt 0 view .LVU78
+ 320 001e 2A46     		mov	r2, r5
+ 321 0020 0021     		movs	r1, #0
+ 322 0022 2046     		mov	r0, r4
+ 323              	.LVL29:
+ 324              		.loc 1 62 11 view .LVU79
+ 325 0024 FFF7FEFF 		bl	ad9518_reg_write
+ 326              	.LVL30:
+  63:Core/Src/ad9518.c ****     if (ret < 0)
+ 327              		.loc 1 63 5 is_stmt 1 view .LVU80
+ 328              		.loc 1 63 8 is_stmt 0 view .LVU81
+ 329 0028 0028     		cmp	r0, #0
+ 330              		.loc 1 63 8 view .LVU82
+ 331 002a 7ADB     		blt	.L17
+  64:Core/Src/ad9518.c ****         return ret;
+  65:Core/Src/ad9518.c **** 
+  66:Core/Src/ad9518.c ****     /* 2. PLL: R=1, P=16 DM, B=5, A=0 -> N=80 -> 25MHz*80 = 2000 MHz VCO */
+  67:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_PFD_CP, 0x7D);
+ 332              		.loc 1 67 5 is_stmt 1 view .LVU83
+ 333              		.loc 1 67 11 is_stmt 0 view .LVU84
+ 334 002c 7D22     		movs	r2, #125
+ 335 002e 1021     		movs	r1, #16
+ 336 0030 2046     		mov	r0, r4
+ 337              	.LVL31:
+ 338              		.loc 1 67 11 view .LVU85
+ 339 0032 FFF7FEFF 		bl	ad9518_reg_write
+ 340              	.LVL32:
+  68:Core/Src/ad9518.c ****     if (ret < 0)
+ 341              		.loc 1 68 5 is_stmt 1 view .LVU86
+ 342              		.loc 1 68 8 is_stmt 0 view .LVU87
+ 343 0036 0028     		cmp	r0, #0
+ 344              		.loc 1 68 8 view .LVU88
+ 345 0038 73DB     		blt	.L17
+  69:Core/Src/ad9518.c ****         return ret;
+  70:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_RCNT_L, 0x01);
+ 346              		.loc 1 70 5 is_stmt 1 view .LVU89
+ 347              		.loc 1 70 11 is_stmt 0 view .LVU90
+ 348 003a 0122     		movs	r2, #1
+ 349 003c 1121     		movs	r1, #17
+ 350 003e 2046     		mov	r0, r4
+ 351              	.LVL33:
+ 352              		.loc 1 70 11 view .LVU91
+ 353 0040 FFF7FEFF 		bl	ad9518_reg_write
+ 354              	.LVL34:
+  71:Core/Src/ad9518.c ****     if (ret < 0)
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 9
+
+
+ 355              		.loc 1 71 5 is_stmt 1 view .LVU92
+ 356              		.loc 1 71 8 is_stmt 0 view .LVU93
+ 357 0044 0028     		cmp	r0, #0
+ 358              		.loc 1 71 8 view .LVU94
+ 359 0046 6CDB     		blt	.L17
+  72:Core/Src/ad9518.c ****         return ret;
+  73:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_RCNT_H, 0x00);
+ 360              		.loc 1 73 5 is_stmt 1 view .LVU95
+ 361              		.loc 1 73 11 is_stmt 0 view .LVU96
+ 362 0048 0022     		movs	r2, #0
+ 363 004a 1221     		movs	r1, #18
+ 364 004c 2046     		mov	r0, r4
+ 365              	.LVL35:
+ 366              		.loc 1 73 11 view .LVU97
+ 367 004e FFF7FEFF 		bl	ad9518_reg_write
+ 368              	.LVL36:
+  74:Core/Src/ad9518.c ****     if (ret < 0)
+ 369              		.loc 1 74 5 is_stmt 1 view .LVU98
+ 370              		.loc 1 74 8 is_stmt 0 view .LVU99
+ 371 0052 0028     		cmp	r0, #0
+ 372              		.loc 1 74 8 view .LVU100
+ 373 0054 65DB     		blt	.L17
+  75:Core/Src/ad9518.c ****         return ret;
+  76:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_ACNT, 0x00);
+ 374              		.loc 1 76 5 is_stmt 1 view .LVU101
+ 375              		.loc 1 76 11 is_stmt 0 view .LVU102
+ 376 0056 0022     		movs	r2, #0
+ 377 0058 1321     		movs	r1, #19
+ 378 005a 2046     		mov	r0, r4
+ 379              	.LVL37:
+ 380              		.loc 1 76 11 view .LVU103
+ 381 005c FFF7FEFF 		bl	ad9518_reg_write
+ 382              	.LVL38:
+  77:Core/Src/ad9518.c ****     if (ret < 0)
+ 383              		.loc 1 77 5 is_stmt 1 view .LVU104
+ 384              		.loc 1 77 8 is_stmt 0 view .LVU105
+ 385 0060 0028     		cmp	r0, #0
+ 386              		.loc 1 77 8 view .LVU106
+ 387 0062 5EDB     		blt	.L17
+  78:Core/Src/ad9518.c ****         return ret;
+  79:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_BCNT_L, 0x05);
+ 388              		.loc 1 79 5 is_stmt 1 view .LVU107
+ 389              		.loc 1 79 11 is_stmt 0 view .LVU108
+ 390 0064 0522     		movs	r2, #5
+ 391 0066 1421     		movs	r1, #20
+ 392 0068 2046     		mov	r0, r4
+ 393              	.LVL39:
+ 394              		.loc 1 79 11 view .LVU109
+ 395 006a FFF7FEFF 		bl	ad9518_reg_write
+ 396              	.LVL40:
+  80:Core/Src/ad9518.c ****     if (ret < 0)
+ 397              		.loc 1 80 5 is_stmt 1 view .LVU110
+ 398              		.loc 1 80 8 is_stmt 0 view .LVU111
+ 399 006e 0028     		cmp	r0, #0
+ 400              		.loc 1 80 8 view .LVU112
+ 401 0070 57DB     		blt	.L17
+  81:Core/Src/ad9518.c ****         return ret;
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 10
+
+
+  82:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_BCNT_H, 0x00);
+ 402              		.loc 1 82 5 is_stmt 1 view .LVU113
+ 403              		.loc 1 82 11 is_stmt 0 view .LVU114
+ 404 0072 0022     		movs	r2, #0
+ 405 0074 1521     		movs	r1, #21
+ 406 0076 2046     		mov	r0, r4
+ 407              	.LVL41:
+ 408              		.loc 1 82 11 view .LVU115
+ 409 0078 FFF7FEFF 		bl	ad9518_reg_write
+ 410              	.LVL42:
+  83:Core/Src/ad9518.c ****     if (ret < 0)
+ 411              		.loc 1 83 5 is_stmt 1 view .LVU116
+ 412              		.loc 1 83 8 is_stmt 0 view .LVU117
+ 413 007c 0028     		cmp	r0, #0
+ 414              		.loc 1 83 8 view .LVU118
+ 415 007e 50DB     		blt	.L17
+  84:Core/Src/ad9518.c ****         return ret;
+  85:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_PLL1, 0x06);
+ 416              		.loc 1 85 5 is_stmt 1 view .LVU119
+ 417              		.loc 1 85 11 is_stmt 0 view .LVU120
+ 418 0080 0622     		movs	r2, #6
+ 419 0082 1621     		movs	r1, #22
+ 420 0084 2046     		mov	r0, r4
+ 421              	.LVL43:
+ 422              		.loc 1 85 11 view .LVU121
+ 423 0086 FFF7FEFF 		bl	ad9518_reg_write
+ 424              	.LVL44:
+  86:Core/Src/ad9518.c ****     if (ret < 0)
+ 425              		.loc 1 86 5 is_stmt 1 view .LVU122
+ 426              		.loc 1 86 8 is_stmt 0 view .LVU123
+ 427 008a 0028     		cmp	r0, #0
+ 428              		.loc 1 86 8 view .LVU124
+ 429 008c 49DB     		blt	.L17
+  87:Core/Src/ad9518.c ****         return ret;
+  88:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_PLL2, 0x00);
+ 430              		.loc 1 88 5 is_stmt 1 view .LVU125
+ 431              		.loc 1 88 11 is_stmt 0 view .LVU126
+ 432 008e 0022     		movs	r2, #0
+ 433 0090 1721     		movs	r1, #23
+ 434 0092 2046     		mov	r0, r4
+ 435              	.LVL45:
+ 436              		.loc 1 88 11 view .LVU127
+ 437 0094 FFF7FEFF 		bl	ad9518_reg_write
+ 438              	.LVL46:
+  89:Core/Src/ad9518.c ****     if (ret < 0)
+ 439              		.loc 1 89 5 is_stmt 1 view .LVU128
+ 440              		.loc 1 89 8 is_stmt 0 view .LVU129
+ 441 0098 0028     		cmp	r0, #0
+ 442              		.loc 1 89 8 view .LVU130
+ 443 009a 42DB     		blt	.L17
+  90:Core/Src/ad9518.c ****         return ret;
+  91:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_PLL3, 0x00);
+ 444              		.loc 1 91 5 is_stmt 1 view .LVU131
+ 445              		.loc 1 91 11 is_stmt 0 view .LVU132
+ 446 009c 0022     		movs	r2, #0
+ 447 009e 1821     		movs	r1, #24
+ 448 00a0 2046     		mov	r0, r4
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 11
+
+
+ 449              	.LVL47:
+ 450              		.loc 1 91 11 view .LVU133
+ 451 00a2 FFF7FEFF 		bl	ad9518_reg_write
+ 452              	.LVL48:
+  92:Core/Src/ad9518.c ****     if (ret < 0)
+ 453              		.loc 1 92 5 is_stmt 1 view .LVU134
+ 454              		.loc 1 92 8 is_stmt 0 view .LVU135
+ 455 00a6 0028     		cmp	r0, #0
+ 456              		.loc 1 92 8 view .LVU136
+ 457 00a8 3BDB     		blt	.L17
+  93:Core/Src/ad9518.c ****         return ret;
+  94:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_PLL4, 0x00);
+ 458              		.loc 1 94 5 is_stmt 1 view .LVU137
+ 459              		.loc 1 94 11 is_stmt 0 view .LVU138
+ 460 00aa 0022     		movs	r2, #0
+ 461 00ac 1921     		movs	r1, #25
+ 462 00ae 2046     		mov	r0, r4
+ 463              	.LVL49:
+ 464              		.loc 1 94 11 view .LVU139
+ 465 00b0 FFF7FEFF 		bl	ad9518_reg_write
+ 466              	.LVL50:
+  95:Core/Src/ad9518.c ****     if (ret < 0)
+ 467              		.loc 1 95 5 is_stmt 1 view .LVU140
+ 468              		.loc 1 95 8 is_stmt 0 view .LVU141
+ 469 00b4 0028     		cmp	r0, #0
+ 470              		.loc 1 95 8 view .LVU142
+ 471 00b6 34DB     		blt	.L17
+  96:Core/Src/ad9518.c ****         return ret;
+  97:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_PLL6, 0x00);
+ 472              		.loc 1 97 5 is_stmt 1 view .LVU143
+ 473              		.loc 1 97 11 is_stmt 0 view .LVU144
+ 474 00b8 0022     		movs	r2, #0
+ 475 00ba 1B21     		movs	r1, #27
+ 476 00bc 2046     		mov	r0, r4
+ 477              	.LVL51:
+ 478              		.loc 1 97 11 view .LVU145
+ 479 00be FFF7FEFF 		bl	ad9518_reg_write
+ 480              	.LVL52:
+  98:Core/Src/ad9518.c ****     if (ret < 0)
+ 481              		.loc 1 98 5 is_stmt 1 view .LVU146
+ 482              		.loc 1 98 8 is_stmt 0 view .LVU147
+ 483 00c2 0028     		cmp	r0, #0
+ 484              		.loc 1 98 8 view .LVU148
+ 485 00c4 2DDB     		blt	.L17
+  99:Core/Src/ad9518.c ****         return ret;
+ 100:Core/Src/ad9518.c **** 
+ 101:Core/Src/ad9518.c ****     /* 3. Clock source: internal VCO -> /2 VCO divider -> channels */
+ 102:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_VCO_DIVIDER, 0x00);
+ 486              		.loc 1 102 5 is_stmt 1 view .LVU149
+ 487              		.loc 1 102 11 is_stmt 0 view .LVU150
+ 488 00c6 0022     		movs	r2, #0
+ 489 00c8 4FF4F071 		mov	r1, #480
+ 490 00cc 2046     		mov	r0, r4
+ 491              	.LVL53:
+ 492              		.loc 1 102 11 view .LVU151
+ 493 00ce FFF7FEFF 		bl	ad9518_reg_write
+ 494              	.LVL54:
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 12
+
+
+ 103:Core/Src/ad9518.c ****     if (ret < 0)
+ 495              		.loc 1 103 5 is_stmt 1 view .LVU152
+ 496              		.loc 1 103 8 is_stmt 0 view .LVU153
+ 497 00d2 0028     		cmp	r0, #0
+ 498              		.loc 1 103 8 view .LVU154
+ 499 00d4 25DB     		blt	.L17
+ 104:Core/Src/ad9518.c ****         return ret;
+ 105:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_INPUT_CLKS, 0x02);
+ 500              		.loc 1 105 5 is_stmt 1 view .LVU155
+ 501              		.loc 1 105 11 is_stmt 0 view .LVU156
+ 502 00d6 0222     		movs	r2, #2
+ 503 00d8 40F2E111 		movw	r1, #481
+ 504 00dc 2046     		mov	r0, r4
+ 505              	.LVL55:
+ 506              		.loc 1 105 11 view .LVU157
+ 507 00de FFF7FEFF 		bl	ad9518_reg_write
+ 508              	.LVL56:
+ 106:Core/Src/ad9518.c ****     if (ret < 0)
+ 509              		.loc 1 106 5 is_stmt 1 view .LVU158
+ 510              		.loc 1 106 8 is_stmt 0 view .LVU159
+ 511 00e2 0028     		cmp	r0, #0
+ 512              		.loc 1 106 8 view .LVU160
+ 513 00e4 1DDB     		blt	.L17
+ 107:Core/Src/ad9518.c ****         return ret;
+ 108:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_POWDOWN_SYNC, 0x00);
+ 514              		.loc 1 108 5 is_stmt 1 view .LVU161
+ 515              		.loc 1 108 11 is_stmt 0 view .LVU162
+ 516 00e6 0022     		movs	r2, #0
+ 517 00e8 4FF40C71 		mov	r1, #560
+ 518 00ec 2046     		mov	r0, r4
+ 519              	.LVL57:
+ 520              		.loc 1 108 11 view .LVU163
+ 521 00ee FFF7FEFF 		bl	ad9518_reg_write
+ 522              	.LVL58:
+ 109:Core/Src/ad9518.c ****     if (ret < 0)
+ 523              		.loc 1 109 5 is_stmt 1 view .LVU164
+ 524              		.loc 1 109 8 is_stmt 0 view .LVU165
+ 525 00f2 0028     		cmp	r0, #0
+ 526              		.loc 1 109 8 view .LVU166
+ 527 00f4 15DB     		blt	.L17
+ 110:Core/Src/ad9518.c ****         return ret;
+ 111:Core/Src/ad9518.c **** 
+ 112:Core/Src/ad9518.c ****     /* 4. Latch, then run VCO calibration (first time: set cal + update) */
+ 113:Core/Src/ad9518.c ****     ret = ad9518_update(d);
+ 528              		.loc 1 113 5 is_stmt 1 view .LVU167
+ 529              		.loc 1 113 11 is_stmt 0 view .LVU168
+ 530 00f6 2046     		mov	r0, r4
+ 531              	.LVL59:
+ 532              		.loc 1 113 11 view .LVU169
+ 533 00f8 FFF7FEFF 		bl	ad9518_update
+ 534              	.LVL60:
+ 114:Core/Src/ad9518.c ****     if (ret < 0)
+ 535              		.loc 1 114 5 is_stmt 1 view .LVU170
+ 536              		.loc 1 114 8 is_stmt 0 view .LVU171
+ 537 00fc 0028     		cmp	r0, #0
+ 538              		.loc 1 114 8 view .LVU172
+ 539 00fe 10DB     		blt	.L17
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 13
+
+
+ 115:Core/Src/ad9518.c ****         return ret;
+ 116:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_PLL3, AD9518_PLL3_VCO_CAL);
+ 540              		.loc 1 116 5 is_stmt 1 view .LVU173
+ 541              		.loc 1 116 11 is_stmt 0 view .LVU174
+ 542 0100 0122     		movs	r2, #1
+ 543 0102 1821     		movs	r1, #24
+ 544 0104 2046     		mov	r0, r4
+ 545              	.LVL61:
+ 546              		.loc 1 116 11 view .LVU175
+ 547 0106 FFF7FEFF 		bl	ad9518_reg_write
+ 548              	.LVL62:
+ 117:Core/Src/ad9518.c ****     if (ret < 0)
+ 549              		.loc 1 117 5 is_stmt 1 view .LVU176
+ 550              		.loc 1 117 8 is_stmt 0 view .LVU177
+ 551 010a 0028     		cmp	r0, #0
+ 552              		.loc 1 117 8 view .LVU178
+ 553 010c 09DB     		blt	.L17
+ 118:Core/Src/ad9518.c ****         return ret;
+ 119:Core/Src/ad9518.c ****     ret = ad9518_update(d);
+ 554              		.loc 1 119 5 is_stmt 1 view .LVU179
+ 555              		.loc 1 119 11 is_stmt 0 view .LVU180
+ 556 010e 2046     		mov	r0, r4
+ 557              	.LVL63:
+ 558              		.loc 1 119 11 view .LVU181
+ 559 0110 FFF7FEFF 		bl	ad9518_update
+ 560              	.LVL64:
+ 120:Core/Src/ad9518.c ****     if (ret < 0)
+ 561              		.loc 1 120 5 is_stmt 1 view .LVU182
+ 562              		.loc 1 120 8 is_stmt 0 view .LVU183
+ 563 0114 0028     		cmp	r0, #0
+ 564              		.loc 1 120 8 view .LVU184
+ 565 0116 04DB     		blt	.L17
+ 121:Core/Src/ad9518.c ****         return ret;
+ 122:Core/Src/ad9518.c **** 
+ 123:Core/Src/ad9518.c ****     if (d->delay_ms)
+ 566              		.loc 1 123 5 is_stmt 1 view .LVU185
+ 567              		.loc 1 123 10 is_stmt 0 view .LVU186
+ 568 0118 A368     		ldr	r3, [r4, #8]
+ 569              		.loc 1 123 8 view .LVU187
+ 570 011a 2BB1     		cbz	r3, .L21
+ 124:Core/Src/ad9518.c ****         d->delay_ms(10);
+ 571              		.loc 1 124 9 is_stmt 1 view .LVU188
+ 572 011c 0A20     		movs	r0, #10
+ 573              	.LVL65:
+ 574              		.loc 1 124 9 is_stmt 0 view .LVU189
+ 575 011e 9847     		blx	r3
+ 576              	.LVL66:
+ 125:Core/Src/ad9518.c **** 
+ 126:Core/Src/ad9518.c ****     return 0;
+ 577              		.loc 1 126 12 view .LVU190
+ 578 0120 0020     		movs	r0, #0
+ 579              	.LVL67:
+ 580              	.L17:
+ 127:Core/Src/ad9518.c **** }
+ 581              		.loc 1 127 1 view .LVU191
+ 582 0122 38BD     		pop	{r3, r4, r5, pc}
+ 583              	.LVL68:
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 14
+
+
+ 584              	.L20:
+  56:Core/Src/ad9518.c **** 
+ 585              		.loc 1 56 13 discriminator 2 view .LVU192
+ 586 0124 1825     		movs	r5, #24
+ 587 0126 71E7     		b	.L18
+ 588              	.LVL69:
+ 589              	.L21:
+ 126:Core/Src/ad9518.c **** }
+ 590              		.loc 1 126 12 view .LVU193
+ 591 0128 0020     		movs	r0, #0
+ 592              	.LVL70:
+ 126:Core/Src/ad9518.c **** }
+ 593              		.loc 1 126 12 view .LVU194
+ 594 012a FAE7     		b	.L17
+ 595              		.cfi_endproc
+ 596              	.LFE5:
+ 598              		.section	.text.ad9518_set_channel_freq,"ax",%progbits
+ 599              		.align	1
+ 600              		.global	ad9518_set_channel_freq
+ 601              		.syntax unified
+ 602              		.thumb
+ 603              		.thumb_func
+ 605              	ad9518_set_channel_freq:
+ 606              	.LVL71:
+ 607              	.LFB6:
+ 128:Core/Src/ad9518.c **** 
+ 129:Core/Src/ad9518.c **** /* ---- per-channel frequency (chan 0..2) ---------------------------------- */
+ 130:Core/Src/ad9518.c **** 
+ 131:Core/Src/ad9518.c **** int ad9518_set_channel_freq(ad9518_dev_t *d, uint8_t chan, uint32_t hz,
+ 132:Core/Src/ad9518.c ****                             uint32_t *actual_hz)
+ 133:Core/Src/ad9518.c **** {
+ 608              		.loc 1 133 1 is_stmt 1 view -0
+ 609              		.cfi_startproc
+ 610              		@ args = 0, pretend = 0, frame = 8
+ 611              		@ frame_needed = 0, uses_anonymous_args = 0
+ 134:Core/Src/ad9518.c ****     if (chan >= AD9518_NUM_CHANNELS || hz == 0)
+ 612              		.loc 1 134 5 view .LVU196
+ 613              		.loc 1 134 8 is_stmt 0 view .LVU197
+ 614 0000 0229     		cmp	r1, #2
+ 615 0002 44D8     		bhi	.L27
+ 133:Core/Src/ad9518.c ****     if (chan >= AD9518_NUM_CHANNELS || hz == 0)
+ 616              		.loc 1 133 1 view .LVU198
+ 617 0004 F0B5     		push	{r4, r5, r6, r7, lr}
+ 618              	.LCFI9:
+ 619              		.cfi_def_cfa_offset 20
+ 620              		.cfi_offset 4, -20
+ 621              		.cfi_offset 5, -16
+ 622              		.cfi_offset 6, -12
+ 623              		.cfi_offset 7, -8
+ 624              		.cfi_offset 14, -4
+ 625 0006 83B0     		sub	sp, sp, #12
+ 626              	.LCFI10:
+ 627              		.cfi_def_cfa_offset 32
+ 628 0008 0746     		mov	r7, r0
+ 629 000a 0C46     		mov	r4, r1
+ 630 000c 1E46     		mov	r6, r3
+ 631              		.loc 1 134 37 discriminator 1 view .LVU199
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 15
+
+
+ 632 000e 002A     		cmp	r2, #0
+ 633 0010 40D0     		beq	.L28
+ 135:Core/Src/ad9518.c ****         return -1;
+ 136:Core/Src/ad9518.c **** 
+ 137:Core/Src/ad9518.c ****     uint32_t div = (AD9518_CHDIV_IN_HZ + hz / 2) / hz; /* round */
+ 634              		.loc 1 137 5 is_stmt 1 view .LVU200
+ 635              		.loc 1 137 40 is_stmt 0 view .LVU201
+ 636 0012 234B     		ldr	r3, .L37
+ 637              	.LVL72:
+ 638              		.loc 1 137 40 view .LVU202
+ 639 0014 03EB5203 		add	r3, r3, r2, lsr #1
+ 640              		.loc 1 137 14 view .LVU203
+ 641 0018 B3FBF2F5 		udiv	r5, r3, r2
+ 642              	.LVL73:
+ 138:Core/Src/ad9518.c ****     if (div < 1)
+ 643              		.loc 1 138 5 is_stmt 1 view .LVU204
+ 644              		.loc 1 138 8 is_stmt 0 view .LVU205
+ 645 001c 9342     		cmp	r3, r2
+ 646 001e 03D3     		bcc	.L29
+ 139:Core/Src/ad9518.c ****         div = 1;
+ 140:Core/Src/ad9518.c ****     if (div > 32)
+ 647              		.loc 1 140 5 is_stmt 1 view .LVU206
+ 648              		.loc 1 140 8 is_stmt 0 view .LVU207
+ 649 0020 202D     		cmp	r5, #32
+ 650 0022 02D9     		bls	.L25
+ 141:Core/Src/ad9518.c ****         div = 32;
+ 651              		.loc 1 141 13 view .LVU208
+ 652 0024 2025     		movs	r5, #32
+ 653              	.LVL74:
+ 654              		.loc 1 141 13 view .LVU209
+ 655 0026 00E0     		b	.L25
+ 656              	.LVL75:
+ 657              	.L29:
+ 139:Core/Src/ad9518.c ****         div = 1;
+ 658              		.loc 1 139 13 view .LVU210
+ 659 0028 0125     		movs	r5, #1
+ 660              	.LVL76:
+ 661              	.L25:
+ 142:Core/Src/ad9518.c **** 
+ 143:Core/Src/ad9518.c ****     uint8_t reg_lohi;
+ 662              		.loc 1 143 5 is_stmt 1 view .LVU211
+ 144:Core/Src/ad9518.c ****     int bypass;
+ 663              		.loc 1 144 5 view .LVU212
+ 145:Core/Src/ad9518.c ****     divider_to_reg((uint8_t)div, &reg_lohi, &bypass);
+ 664              		.loc 1 145 5 view .LVU213
+ 665 002a 6A46     		mov	r2, sp
+ 666              	.LVL77:
+ 667              		.loc 1 145 5 is_stmt 0 view .LVU214
+ 668 002c 0DF10701 		add	r1, sp, #7
+ 669              	.LVL78:
+ 670              		.loc 1 145 5 view .LVU215
+ 671 0030 E8B2     		uxtb	r0, r5
+ 672              	.LVL79:
+ 673              		.loc 1 145 5 view .LVU216
+ 674 0032 FFF7FEFF 		bl	divider_to_reg
+ 675              	.LVL80:
+ 146:Core/Src/ad9518.c **** 
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 16
+
+
+ 147:Core/Src/ad9518.c ****     int ret;
+ 676              		.loc 1 147 5 is_stmt 1 view .LVU217
+ 148:Core/Src/ad9518.c ****     uint8_t p2 = 0;
+ 677              		.loc 1 148 5 view .LVU218
+ 149:Core/Src/ad9518.c **** 
+ 150:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_PECLDIV_1(chan), reg_lohi);
+ 678              		.loc 1 150 5 view .LVU219
+ 679              		.loc 1 150 11 is_stmt 0 view .LVU220
+ 680 0036 04EB4404 		add	r4, r4, r4, lsl #1
+ 681              	.LVL81:
+ 682              		.loc 1 150 11 view .LVU221
+ 683 003a 9DF80720 		ldrb	r2, [sp, #7]	@ zero_extendqisi2
+ 684 003e 04F5C871 		add	r1, r4, #400
+ 685 0042 3846     		mov	r0, r7
+ 686 0044 FFF7FEFF 		bl	ad9518_reg_write
+ 687              	.LVL82:
+ 151:Core/Src/ad9518.c ****     if (ret < 0)
+ 688              		.loc 1 151 5 is_stmt 1 view .LVU222
+ 689              		.loc 1 151 8 is_stmt 0 view .LVU223
+ 690 0048 0028     		cmp	r0, #0
+ 691              		.loc 1 151 8 view .LVU224
+ 692 004a 1CDB     		blt	.L23
+ 152:Core/Src/ad9518.c ****         return ret;
+ 153:Core/Src/ad9518.c **** 
+ 154:Core/Src/ad9518.c ****     if (bypass)
+ 693              		.loc 1 154 5 is_stmt 1 view .LVU225
+ 694              		.loc 1 154 9 is_stmt 0 view .LVU226
+ 695 004c 009B     		ldr	r3, [sp]
+ 696              		.loc 1 154 8 view .LVU227
+ 697 004e E3B9     		cbnz	r3, .L31
+ 148:Core/Src/ad9518.c **** 
+ 698              		.loc 1 148 13 view .LVU228
+ 699 0050 0022     		movs	r2, #0
+ 700              	.L26:
+ 701              	.LVL83:
+ 155:Core/Src/ad9518.c ****         p2 |= AD9518_PECLDIV_BYPASS;
+ 156:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_PECLDIV_2(chan), p2);
+ 702              		.loc 1 156 5 is_stmt 1 view .LVU229
+ 703              		.loc 1 156 11 is_stmt 0 view .LVU230
+ 704 0052 04F29111 		addw	r1, r4, #401
+ 705 0056 3846     		mov	r0, r7
+ 706              	.LVL84:
+ 707              		.loc 1 156 11 view .LVU231
+ 708 0058 FFF7FEFF 		bl	ad9518_reg_write
+ 709              	.LVL85:
+ 157:Core/Src/ad9518.c ****     if (ret < 0)
+ 710              		.loc 1 157 5 is_stmt 1 view .LVU232
+ 711              		.loc 1 157 8 is_stmt 0 view .LVU233
+ 712 005c 0028     		cmp	r0, #0
+ 713              		.loc 1 157 8 view .LVU234
+ 714 005e 12DB     		blt	.L23
+ 158:Core/Src/ad9518.c ****         return ret;
+ 159:Core/Src/ad9518.c **** 
+ 160:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_PECLDIV_3(chan), 0x00);
+ 715              		.loc 1 160 5 is_stmt 1 view .LVU235
+ 716              		.loc 1 160 11 is_stmt 0 view .LVU236
+ 717 0060 0022     		movs	r2, #0
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 17
+
+
+ 718 0062 04F5C971 		add	r1, r4, #402
+ 719 0066 3846     		mov	r0, r7
+ 720              	.LVL86:
+ 721              		.loc 1 160 11 view .LVU237
+ 722 0068 FFF7FEFF 		bl	ad9518_reg_write
+ 723              	.LVL87:
+ 161:Core/Src/ad9518.c ****     if (ret < 0)
+ 724              		.loc 1 161 5 is_stmt 1 view .LVU238
+ 725              		.loc 1 161 8 is_stmt 0 view .LVU239
+ 726 006c 0028     		cmp	r0, #0
+ 727              		.loc 1 161 8 view .LVU240
+ 728 006e 0ADB     		blt	.L23
+ 162:Core/Src/ad9518.c ****         return ret;
+ 163:Core/Src/ad9518.c **** 
+ 164:Core/Src/ad9518.c ****     ret = ad9518_update(d);
+ 729              		.loc 1 164 5 is_stmt 1 view .LVU241
+ 730              		.loc 1 164 11 is_stmt 0 view .LVU242
+ 731 0070 3846     		mov	r0, r7
+ 732              	.LVL88:
+ 733              		.loc 1 164 11 view .LVU243
+ 734 0072 FFF7FEFF 		bl	ad9518_update
+ 735              	.LVL89:
+ 165:Core/Src/ad9518.c ****     if (ret < 0)
+ 736              		.loc 1 165 5 is_stmt 1 view .LVU244
+ 737              		.loc 1 165 8 is_stmt 0 view .LVU245
+ 738 0076 0028     		cmp	r0, #0
+ 739              		.loc 1 165 8 view .LVU246
+ 740 0078 05DB     		blt	.L23
+ 166:Core/Src/ad9518.c ****         return ret;
+ 167:Core/Src/ad9518.c **** 
+ 168:Core/Src/ad9518.c ****     if (actual_hz)
+ 741              		.loc 1 168 5 is_stmt 1 view .LVU247
+ 742              		.loc 1 168 8 is_stmt 0 view .LVU248
+ 743 007a 76B1     		cbz	r6, .L32
+ 169:Core/Src/ad9518.c ****         *actual_hz = (uint32_t)(AD9518_CHDIV_IN_HZ / div);
+ 744              		.loc 1 169 9 is_stmt 1 view .LVU249
+ 745              		.loc 1 169 22 is_stmt 0 view .LVU250
+ 746 007c 084B     		ldr	r3, .L37
+ 747 007e B3FBF5F3 		udiv	r3, r3, r5
+ 748              		.loc 1 169 20 view .LVU251
+ 749 0082 3360     		str	r3, [r6]
+ 170:Core/Src/ad9518.c ****     return 0;
+ 750              		.loc 1 170 12 view .LVU252
+ 751 0084 0020     		movs	r0, #0
+ 752              	.LVL90:
+ 753              	.L23:
+ 171:Core/Src/ad9518.c **** }
+ 754              		.loc 1 171 1 view .LVU253
+ 755 0086 03B0     		add	sp, sp, #12
+ 756              	.LCFI11:
+ 757              		.cfi_remember_state
+ 758              		.cfi_def_cfa_offset 20
+ 759              		@ sp needed
+ 760 0088 F0BD     		pop	{r4, r5, r6, r7, pc}
+ 761              	.LVL91:
+ 762              	.L31:
+ 763              	.LCFI12:
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 18
+
+
+ 764              		.cfi_restore_state
+ 155:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_PECLDIV_2(chan), p2);
+ 765              		.loc 1 155 12 view .LVU254
+ 766 008a 8022     		movs	r2, #128
+ 767 008c E1E7     		b	.L26
+ 768              	.LVL92:
+ 769              	.L27:
+ 770              	.LCFI13:
+ 771              		.cfi_def_cfa_offset 0
+ 772              		.cfi_restore 4
+ 773              		.cfi_restore 5
+ 774              		.cfi_restore 6
+ 775              		.cfi_restore 7
+ 776              		.cfi_restore 14
+ 135:Core/Src/ad9518.c **** 
+ 777              		.loc 1 135 16 view .LVU255
+ 778 008e 4FF0FF30 		mov	r0, #-1
+ 779              	.LVL93:
+ 780              		.loc 1 171 1 view .LVU256
+ 781 0092 7047     		bx	lr
+ 782              	.LVL94:
+ 783              	.L28:
+ 784              	.LCFI14:
+ 785              		.cfi_def_cfa_offset 32
+ 786              		.cfi_offset 4, -20
+ 787              		.cfi_offset 5, -16
+ 788              		.cfi_offset 6, -12
+ 789              		.cfi_offset 7, -8
+ 790              		.cfi_offset 14, -4
+ 135:Core/Src/ad9518.c **** 
+ 791              		.loc 1 135 16 view .LVU257
+ 792 0094 4FF0FF30 		mov	r0, #-1
+ 793              	.LVL95:
+ 135:Core/Src/ad9518.c **** 
+ 794              		.loc 1 135 16 view .LVU258
+ 795 0098 F5E7     		b	.L23
+ 796              	.LVL96:
+ 797              	.L32:
+ 170:Core/Src/ad9518.c **** }
+ 798              		.loc 1 170 12 view .LVU259
+ 799 009a 0020     		movs	r0, #0
+ 800              	.LVL97:
+ 170:Core/Src/ad9518.c **** }
+ 801              		.loc 1 170 12 view .LVU260
+ 802 009c F3E7     		b	.L23
+ 803              	.L38:
+ 804 009e 00BF     		.align	2
+ 805              	.L37:
+ 806 00a0 00CA9A3B 		.word	1000000000
+ 807              		.cfi_endproc
+ 808              	.LFE6:
+ 810              		.section	.text.ad9518_get_channel_freq,"ax",%progbits
+ 811              		.align	1
+ 812              		.global	ad9518_get_channel_freq
+ 813              		.syntax unified
+ 814              		.thumb
+ 815              		.thumb_func
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 19
+
+
+ 817              	ad9518_get_channel_freq:
+ 818              	.LVL98:
+ 819              	.LFB7:
+ 172:Core/Src/ad9518.c **** 
+ 173:Core/Src/ad9518.c **** int ad9518_get_channel_freq(ad9518_dev_t *d, uint8_t chan, uint32_t *hz)
+ 174:Core/Src/ad9518.c **** {
+ 820              		.loc 1 174 1 is_stmt 1 view -0
+ 821              		.cfi_startproc
+ 822              		@ args = 0, pretend = 0, frame = 8
+ 823              		@ frame_needed = 0, uses_anonymous_args = 0
+ 175:Core/Src/ad9518.c ****     if (chan >= AD9518_NUM_CHANNELS || !hz)
+ 824              		.loc 1 175 5 view .LVU262
+ 825              		.loc 1 175 8 is_stmt 0 view .LVU263
+ 826 0000 0229     		cmp	r1, #2
+ 827 0002 2BD8     		bhi	.L42
+ 174:Core/Src/ad9518.c ****     if (chan >= AD9518_NUM_CHANNELS || !hz)
+ 828              		.loc 1 174 1 view .LVU264
+ 829 0004 70B5     		push	{r4, r5, r6, lr}
+ 830              	.LCFI15:
+ 831              		.cfi_def_cfa_offset 16
+ 832              		.cfi_offset 4, -16
+ 833              		.cfi_offset 5, -12
+ 834              		.cfi_offset 6, -8
+ 835              		.cfi_offset 14, -4
+ 836 0006 82B0     		sub	sp, sp, #8
+ 837              	.LCFI16:
+ 838              		.cfi_def_cfa_offset 24
+ 839 0008 0546     		mov	r5, r0
+ 840 000a 1646     		mov	r6, r2
+ 841              		.loc 1 175 37 discriminator 1 view .LVU265
+ 842 000c 4AB3     		cbz	r2, .L43
+ 176:Core/Src/ad9518.c ****         return -1;
+ 177:Core/Src/ad9518.c **** 
+ 178:Core/Src/ad9518.c ****     uint8_t p1, p2;
+ 843              		.loc 1 178 5 is_stmt 1 view .LVU266
+ 179:Core/Src/ad9518.c ****     int ret;
+ 844              		.loc 1 179 5 view .LVU267
+ 180:Core/Src/ad9518.c ****     ret = ad9518_reg_read(d, AD9518_PECLDIV_1(chan), &p1);
+ 845              		.loc 1 180 5 view .LVU268
+ 846              		.loc 1 180 11 is_stmt 0 view .LVU269
+ 847 000e 01EB4104 		add	r4, r1, r1, lsl #1
+ 848 0012 0DF10702 		add	r2, sp, #7
+ 849              	.LVL99:
+ 850              		.loc 1 180 11 view .LVU270
+ 851 0016 04F5C871 		add	r1, r4, #400
+ 852              	.LVL100:
+ 853              		.loc 1 180 11 view .LVU271
+ 854 001a FFF7FEFF 		bl	ad9518_reg_read
+ 855              	.LVL101:
+ 181:Core/Src/ad9518.c ****     if (ret < 0)
+ 856              		.loc 1 181 5 is_stmt 1 view .LVU272
+ 857              		.loc 1 181 8 is_stmt 0 view .LVU273
+ 858 001e 0028     		cmp	r0, #0
+ 859              		.loc 1 181 8 view .LVU274
+ 860 0020 18DB     		blt	.L39
+ 182:Core/Src/ad9518.c ****         return ret;
+ 183:Core/Src/ad9518.c ****     ret = ad9518_reg_read(d, AD9518_PECLDIV_2(chan), &p2);
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 20
+
+
+ 861              		.loc 1 183 5 is_stmt 1 view .LVU275
+ 862              		.loc 1 183 11 is_stmt 0 view .LVU276
+ 863 0022 0DF10602 		add	r2, sp, #6
+ 864 0026 04F29111 		addw	r1, r4, #401
+ 865 002a 2846     		mov	r0, r5
+ 866              	.LVL102:
+ 867              		.loc 1 183 11 view .LVU277
+ 868 002c FFF7FEFF 		bl	ad9518_reg_read
+ 869              	.LVL103:
+ 184:Core/Src/ad9518.c ****     if (ret < 0)
+ 870              		.loc 1 184 5 is_stmt 1 view .LVU278
+ 871              		.loc 1 184 8 is_stmt 0 view .LVU279
+ 872 0030 0028     		cmp	r0, #0
+ 873              		.loc 1 184 8 view .LVU280
+ 874 0032 0FDB     		blt	.L39
+ 185:Core/Src/ad9518.c ****         return ret;
+ 186:Core/Src/ad9518.c **** 
+ 187:Core/Src/ad9518.c ****     uint32_t div;
+ 875              		.loc 1 187 5 is_stmt 1 view .LVU281
+ 188:Core/Src/ad9518.c ****     if (p2 & AD9518_PECLDIV_BYPASS)
+ 876              		.loc 1 188 5 view .LVU282
+ 877              		.loc 1 188 9 is_stmt 0 view .LVU283
+ 878 0034 9DF90630 		ldrsb	r3, [sp, #6]
+ 879              		.loc 1 188 8 view .LVU284
+ 880 0038 002B     		cmp	r3, #0
+ 881 003a 0DDB     		blt	.L44
+ 189:Core/Src/ad9518.c ****         div = 1;
+ 190:Core/Src/ad9518.c ****     else
+ 191:Core/Src/ad9518.c ****         div = (uint32_t)((p1 & 0x0F) + (p1 >> 4) + 2);
+ 882              		.loc 1 191 9 is_stmt 1 view .LVU285
+ 883              		.loc 1 191 30 is_stmt 0 view .LVU286
+ 884 003c 9DF80720 		ldrb	r2, [sp, #7]	@ zero_extendqisi2
+ 885 0040 02F00F03 		and	r3, r2, #15
+ 886              		.loc 1 191 38 view .LVU287
+ 887 0044 03EB1213 		add	r3, r3, r2, lsr #4
+ 888              		.loc 1 191 50 view .LVU288
+ 889 0048 0233     		adds	r3, r3, #2
+ 890              	.LVL104:
+ 891              	.L41:
+ 192:Core/Src/ad9518.c **** 
+ 193:Core/Src/ad9518.c ****     *hz = (uint32_t)(AD9518_CHDIV_IN_HZ / div);
+ 892              		.loc 1 193 5 is_stmt 1 view .LVU289
+ 893              		.loc 1 193 11 is_stmt 0 view .LVU290
+ 894 004a 074A     		ldr	r2, .L49
+ 895 004c B2FBF3F3 		udiv	r3, r2, r3
+ 896              	.LVL105:
+ 897              		.loc 1 193 9 view .LVU291
+ 898 0050 3360     		str	r3, [r6]
+ 194:Core/Src/ad9518.c ****     return 0;
+ 899              		.loc 1 194 5 is_stmt 1 view .LVU292
+ 900              		.loc 1 194 12 is_stmt 0 view .LVU293
+ 901 0052 0020     		movs	r0, #0
+ 902              	.LVL106:
+ 903              	.L39:
+ 195:Core/Src/ad9518.c **** }
+ 904              		.loc 1 195 1 view .LVU294
+ 905 0054 02B0     		add	sp, sp, #8
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 21
+
+
+ 906              	.LCFI17:
+ 907              		.cfi_remember_state
+ 908              		.cfi_def_cfa_offset 16
+ 909              		@ sp needed
+ 910 0056 70BD     		pop	{r4, r5, r6, pc}
+ 911              	.LVL107:
+ 912              	.L44:
+ 913              	.LCFI18:
+ 914              		.cfi_restore_state
+ 189:Core/Src/ad9518.c ****     else
+ 915              		.loc 1 189 13 view .LVU295
+ 916 0058 0123     		movs	r3, #1
+ 917 005a F6E7     		b	.L41
+ 918              	.LVL108:
+ 919              	.L42:
+ 920              	.LCFI19:
+ 921              		.cfi_def_cfa_offset 0
+ 922              		.cfi_restore 4
+ 923              		.cfi_restore 5
+ 924              		.cfi_restore 6
+ 925              		.cfi_restore 14
+ 176:Core/Src/ad9518.c **** 
+ 926              		.loc 1 176 16 view .LVU296
+ 927 005c 4FF0FF30 		mov	r0, #-1
+ 928              	.LVL109:
+ 929              		.loc 1 195 1 view .LVU297
+ 930 0060 7047     		bx	lr
+ 931              	.LVL110:
+ 932              	.L43:
+ 933              	.LCFI20:
+ 934              		.cfi_def_cfa_offset 24
+ 935              		.cfi_offset 4, -16
+ 936              		.cfi_offset 5, -12
+ 937              		.cfi_offset 6, -8
+ 938              		.cfi_offset 14, -4
+ 176:Core/Src/ad9518.c **** 
+ 939              		.loc 1 176 16 view .LVU298
+ 940 0062 4FF0FF30 		mov	r0, #-1
+ 941              	.LVL111:
+ 176:Core/Src/ad9518.c **** 
+ 942              		.loc 1 176 16 view .LVU299
+ 943 0066 F5E7     		b	.L39
+ 944              	.L50:
+ 945              		.align	2
+ 946              	.L49:
+ 947 0068 00CA9A3B 		.word	1000000000
+ 948              		.cfi_endproc
+ 949              	.LFE7:
+ 951              		.section	.text.ad9518_channel_enable,"ax",%progbits
+ 952              		.align	1
+ 953              		.global	ad9518_channel_enable
+ 954              		.syntax unified
+ 955              		.thumb
+ 956              		.thumb_func
+ 958              	ad9518_channel_enable:
+ 959              	.LVL112:
+ 960              	.LFB8:
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 22
+
+
+ 196:Core/Src/ad9518.c **** 
+ 197:Core/Src/ad9518.c **** /* ---- enable/disable a channel's two LVPECL outputs ---------------------- */
+ 198:Core/Src/ad9518.c **** 
+ 199:Core/Src/ad9518.c **** int ad9518_channel_enable(ad9518_dev_t *d, uint8_t chan, int on)
+ 200:Core/Src/ad9518.c **** {
+ 961              		.loc 1 200 1 is_stmt 1 view -0
+ 962              		.cfi_startproc
+ 963              		@ args = 0, pretend = 0, frame = 0
+ 964              		@ frame_needed = 0, uses_anonymous_args = 0
+ 201:Core/Src/ad9518.c ****     if (chan >= AD9518_NUM_CHANNELS)
+ 965              		.loc 1 201 5 view .LVU301
+ 966              		.loc 1 201 8 is_stmt 0 view .LVU302
+ 967 0000 0229     		cmp	r1, #2
+ 968 0002 1CD8     		bhi	.L54
+ 200:Core/Src/ad9518.c ****     if (chan >= AD9518_NUM_CHANNELS)
+ 969              		.loc 1 200 1 view .LVU303
+ 970 0004 70B5     		push	{r4, r5, r6, lr}
+ 971              	.LCFI21:
+ 972              		.cfi_def_cfa_offset 16
+ 973              		.cfi_offset 4, -16
+ 974              		.cfi_offset 5, -12
+ 975              		.cfi_offset 6, -8
+ 976              		.cfi_offset 14, -4
+ 977 0006 0446     		mov	r4, r0
+ 202:Core/Src/ad9518.c ****         return -1;
+ 203:Core/Src/ad9518.c **** 
+ 204:Core/Src/ad9518.c ****     uint8_t out0 = (uint8_t)(2 * chan);
+ 978              		.loc 1 204 5 is_stmt 1 view .LVU304
+ 979              		.loc 1 204 13 is_stmt 0 view .LVU305
+ 980 0008 4900     		lsls	r1, r1, #1
+ 981              	.LVL113:
+ 982              		.loc 1 204 13 view .LVU306
+ 983 000a C9B2     		uxtb	r1, r1
+ 984              	.LVL114:
+ 205:Core/Src/ad9518.c ****     uint8_t out1 = (uint8_t)(2 * chan + 1);
+ 985              		.loc 1 205 5 is_stmt 1 view .LVU307
+ 986              		.loc 1 205 13 is_stmt 0 view .LVU308
+ 987 000c 4B1C     		adds	r3, r1, #1
+ 988 000e DDB2     		uxtb	r5, r3
+ 989              	.LVL115:
+ 206:Core/Src/ad9518.c ****     uint8_t val = on ? 0x08 : 0x0B; /* bits[1:0]: 00=on, 11=power down */
+ 990              		.loc 1 206 5 is_stmt 1 view .LVU309
+ 991              		.loc 1 206 13 is_stmt 0 view .LVU310
+ 992 0010 9AB1     		cbz	r2, .L55
+ 993              		.loc 1 206 13 discriminator 1 view .LVU311
+ 994 0012 0826     		movs	r6, #8
+ 995              	.L53:
+ 996              	.LVL116:
+ 207:Core/Src/ad9518.c **** 
+ 208:Core/Src/ad9518.c ****     int ret;
+ 997              		.loc 1 208 5 is_stmt 1 view .LVU312
+ 209:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_OUT_LVPECL(out0), val);
+ 998              		.loc 1 209 5 view .LVU313
+ 999              		.loc 1 209 11 is_stmt 0 view .LVU314
+ 1000 0014 3246     		mov	r2, r6
+ 1001              	.LVL117:
+ 1002              		.loc 1 209 11 view .LVU315
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 23
+
+
+ 1003 0016 F031     		adds	r1, r1, #240
+ 1004              	.LVL118:
+ 1005              		.loc 1 209 11 view .LVU316
+ 1006 0018 2046     		mov	r0, r4
+ 1007              	.LVL119:
+ 1008              		.loc 1 209 11 view .LVU317
+ 1009 001a FFF7FEFF 		bl	ad9518_reg_write
+ 1010              	.LVL120:
+ 210:Core/Src/ad9518.c ****     if (ret < 0)
+ 1011              		.loc 1 210 5 is_stmt 1 view .LVU318
+ 1012              		.loc 1 210 8 is_stmt 0 view .LVU319
+ 1013 001e 0028     		cmp	r0, #0
+ 1014              		.loc 1 210 8 view .LVU320
+ 1015 0020 0ADB     		blt	.L51
+ 211:Core/Src/ad9518.c ****         return ret;
+ 212:Core/Src/ad9518.c ****     ret = ad9518_reg_write(d, AD9518_OUT_LVPECL(out1), val);
+ 1016              		.loc 1 212 5 is_stmt 1 view .LVU321
+ 1017              		.loc 1 212 11 is_stmt 0 view .LVU322
+ 1018 0022 3246     		mov	r2, r6
+ 1019 0024 05F1F001 		add	r1, r5, #240
+ 1020 0028 2046     		mov	r0, r4
+ 1021              	.LVL121:
+ 1022              		.loc 1 212 11 view .LVU323
+ 1023 002a FFF7FEFF 		bl	ad9518_reg_write
+ 1024              	.LVL122:
+ 213:Core/Src/ad9518.c ****     if (ret < 0)
+ 1025              		.loc 1 213 5 is_stmt 1 view .LVU324
+ 1026              		.loc 1 213 8 is_stmt 0 view .LVU325
+ 1027 002e 0028     		cmp	r0, #0
+ 1028              		.loc 1 213 8 view .LVU326
+ 1029 0030 02DB     		blt	.L51
+ 214:Core/Src/ad9518.c ****         return ret;
+ 215:Core/Src/ad9518.c ****     return ad9518_update(d);
+ 1030              		.loc 1 215 5 is_stmt 1 view .LVU327
+ 1031              		.loc 1 215 12 is_stmt 0 view .LVU328
+ 1032 0032 2046     		mov	r0, r4
+ 1033              	.LVL123:
+ 1034              		.loc 1 215 12 view .LVU329
+ 1035 0034 FFF7FEFF 		bl	ad9518_update
+ 1036              	.LVL124:
+ 1037              	.L51:
+ 216:Core/Src/ad9518.c **** }...
+ 1038              		.loc 1 216 1 view .LVU330
+ 1039 0038 70BD     		pop	{r4, r5, r6, pc}
+ 1040              	.LVL125:
+ 1041              	.L55:
+ 206:Core/Src/ad9518.c ****     uint8_t val = on ? 0x08 : 0x0B; /* bits[1:0]: 00=on, 11=power down */
+ 1042              		.loc 1 206 13 discriminator 2 view .LVU331
+ 1043 003a 0B26     		movs	r6, #11
+ 1044 003c EAE7     		b	.L53
+ 1045              	.LVL126:
+ 1046              	.L54:
+ 1047              	.LCFI22:
+ 1048              		.cfi_def_cfa_offset 0
+ 1049              		.cfi_restore 4
+ 1050              		.cfi_restore 5
+ 1051              		.cfi_restore 6
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 24
+
+
+ 1052              		.cfi_restore 14
+ 202:Core/Src/ad9518.c ****         return -1;
+ 1053              		.loc 1 202 16 view .LVU332
+ 1054 003e 4FF0FF30 		mov	r0, #-1
+ 1055              	.LVL127:
+ 1056              		.loc 1 216 1 view .LVU333
+ 1057 0042 7047     		bx	lr
+ 1058              		.cfi_endproc
+ 1059              	.LFE8:
+ 1061              		.text
+ 1062              	.Letext0:
+ 1063              		.file 2 "/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/arm-none-eabi/include/machine/_defa
+ 1064              		.file 3 "/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/arm-none-eabi/include/sys/_stdint.h
+ 1065              		.file 4 "Core/Inc/ad9518.h"
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s 			page 25
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 ad9518.c
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s:19     .text.divider_to_reg:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s:24     .text.divider_to_reg:00000000 divider_to_reg
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s:97     .text.ad9518_reg_write:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s:103    .text.ad9518_reg_write:00000000 ad9518_reg_write
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s:149    .text.ad9518_reg_read:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s:155    .text.ad9518_reg_read:00000000 ad9518_reg_read
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s:207    .text.ad9518_update:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s:213    .text.ad9518_update:00000000 ad9518_update
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s:238    .text.ad9518_read_part_id:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s:244    .text.ad9518_read_part_id:00000000 ad9518_read_part_id
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s:271    .text.ad9518_init:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s:277    .text.ad9518_init:00000000 ad9518_init
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s:599    .text.ad9518_set_channel_freq:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s:605    .text.ad9518_set_channel_freq:00000000 ad9518_set_channel_freq
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s:806    .text.ad9518_set_channel_freq:000000a0 $d
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s:811    .text.ad9518_get_channel_freq:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s:817    .text.ad9518_get_channel_freq:00000000 ad9518_get_channel_freq
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s:947    .text.ad9518_get_channel_freq:00000068 $d
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s:952    .text.ad9518_channel_enable:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFw8URb.s:958    .text.ad9518_channel_enable:00000000 ad9518_channel_enable
+
+NO UNDEFINED SYMBOLS
