@@ -1,4 +1,4 @@
-ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s 			page 1
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s 			page 1
 
 
    1              		.cpu cortex-m3
@@ -18,517 +18,1095 @@ ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s 			page 1
   15              	.Ltext0:
   16              		.cfi_sections	.debug_frame
   17              		.file 1 "Core/Src/ad9518_stm.c"
-  18              		.section	.text.spi_dir_tx,"ax",%progbits
+  18              		.section	.text.bb,"ax",%progbits
   19              		.align	1
   20              		.syntax unified
   21              		.thumb
   22              		.thumb_func
-  24              	spi_dir_tx:
+  24              	bb:
   25              	.LFB67:
    1:Core/Src/ad9518_stm.c **** #include "ad9518.h"
    2:Core/Src/ad9518_stm.c **** #include "stm32f1xx_hal.h"
    3:Core/Src/ad9518_stm.c **** #include "main.h"
-   4:Core/Src/ad9518_stm.c **** 
-   5:Core/Src/ad9518_stm.c **** extern SPI_HandleTypeDef hspi1;
-   6:Core/Src/ad9518_stm.c **** #define CS_PORT CS_CLK_GPIO_Port
-   7:Core/Src/ad9518_stm.c **** #define CS_PIN CS_CLK_Pin
+   4:Core/Src/ad9518_stm.c **** #include <string.h>
+   5:Core/Src/ad9518_stm.c **** 
+   6:Core/Src/ad9518_stm.c **** extern SPI_HandleTypeDef hspi1;
+   7:Core/Src/ad9518_stm.c **** extern UART_HandleTypeDef huart1;
    8:Core/Src/ad9518_stm.c **** 
-   9:Core/Src/ad9518_stm.c **** static inline void cs_low(void) { HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_RESET); }
-  10:Core/Src/ad9518_stm.c **** static inline void cs_high(void) { HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_SET); }
-  11:Core/Src/ad9518_stm.c **** 
-  12:Core/Src/ad9518_stm.c **** /* In half-duplex master (BIDIMODE=1), BIDIOE=1 => output (transmit),
-  13:Core/Src/ad9518_stm.c ****  * BIDIOE=0 => input (receive). The SPI must be disabled while changing it. */
-  14:Core/Src/ad9518_stm.c **** static inline void spi_dir_tx(void)
-  15:Core/Src/ad9518_stm.c **** {
-  26              		.loc 1 15 1 view -0
+   9:Core/Src/ad9518_stm.c **** /* SPI1 on F1: SCK PA5, SDIO(MOSI) PA7. CS = CS_CLK label. */
+  10:Core/Src/ad9518_stm.c **** #define SCK_PORT GPIOA
+  11:Core/Src/ad9518_stm.c **** #define SCK_PIN GPIO_PIN_5
+  12:Core/Src/ad9518_stm.c **** #define SDIO_PORT GPIOA
+  13:Core/Src/ad9518_stm.c **** #define SDIO_PIN GPIO_PIN_7
+  14:Core/Src/ad9518_stm.c **** #define CS_PORT CS_CLK_GPIO_Port
+  15:Core/Src/ad9518_stm.c **** #define CS_PIN CS_CLK_Pin
+  16:Core/Src/ad9518_stm.c **** 
+  17:Core/Src/ad9518_stm.c **** #define SPI_CR1_SPE_BIT (1u << 6)
+  18:Core/Src/ad9518_stm.c **** #define SPI_CR1_BIDIOE_BIT (1u << 14)
+  19:Core/Src/ad9518_stm.c **** #define BB_DELAY_COUNT 200
+  20:Core/Src/ad9518_stm.c **** 
+  21:Core/Src/ad9518_stm.c **** static inline void cs_low(void) { HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_RESET); }
+  22:Core/Src/ad9518_stm.c **** static inline void cs_high(void) { HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_SET); }
+  23:Core/Src/ad9518_stm.c **** static inline void bb(void)
+  24:Core/Src/ad9518_stm.c **** {
+  26              		.loc 1 24 1 view -0
   27              		.cfi_startproc
-  28              		@ args = 0, pretend = 0, frame = 0
+  28              		@ args = 0, pretend = 0, frame = 8
   29              		@ frame_needed = 0, uses_anonymous_args = 0
   30              		@ link register save eliminated.
-  16:Core/Src/ad9518_stm.c ****     __HAL_SPI_DISABLE(&hspi1);
-  31              		.loc 1 16 5 view .LVU1
-  32 0000 054A     		ldr	r2, .L2
-  33 0002 1168     		ldr	r1, [r2]
-  34 0004 0B68     		ldr	r3, [r1]
-  35 0006 23F04003 		bic	r3, r3, #64
-  36 000a 0B60     		str	r3, [r1]
-  17:Core/Src/ad9518_stm.c ****     hspi1.Instance->CR1 |= SPI_CR1_BIDIOE; /* drive the data line */
-  37              		.loc 1 17 5 view .LVU2
-  38              		.loc 1 17 10 is_stmt 0 view .LVU3
-  39 000c 1268     		ldr	r2, [r2]
-  40              		.loc 1 17 19 view .LVU4
-  41 000e 1368     		ldr	r3, [r2]
-ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s 			page 2
+  31 0000 82B0     		sub	sp, sp, #8
+  32              	.LCFI0:
+  33              		.cfi_def_cfa_offset 8
+  25:Core/Src/ad9518_stm.c ****     for (volatile int i = 0; i < BB_DELAY_COUNT; i++)
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s 			page 2
 
 
-  42              		.loc 1 17 25 view .LVU5
-  43 0010 43F48043 		orr	r3, r3, #16384
-  44 0014 1360     		str	r3, [r2]
-  18:Core/Src/ad9518_stm.c **** }
-  45              		.loc 1 18 1 view .LVU6
-  46 0016 7047     		bx	lr
-  47              	.L3:
-  48              		.align	2
-  49              	.L2:
-  50 0018 00000000 		.word	hspi1
-  51              		.cfi_endproc
-  52              	.LFE67:
-  54              		.section	.text.spi_dir_rx,"ax",%progbits
-  55              		.align	1
-  56              		.syntax unified
-  57              		.thumb
-  58              		.thumb_func
-  60              	spi_dir_rx:
-  61              	.LFB68:
-  19:Core/Src/ad9518_stm.c **** static inline void spi_dir_rx(void)
-  20:Core/Src/ad9518_stm.c **** {
-  62              		.loc 1 20 1 is_stmt 1 view -0
-  63              		.cfi_startproc
-  64              		@ args = 0, pretend = 0, frame = 0
-  65              		@ frame_needed = 0, uses_anonymous_args = 0
-  66              		@ link register save eliminated.
-  21:Core/Src/ad9518_stm.c ****     __HAL_SPI_DISABLE(&hspi1);
-  67              		.loc 1 21 5 view .LVU8
-  68 0000 054A     		ldr	r2, .L5
-  69 0002 1168     		ldr	r1, [r2]
-  70 0004 0B68     		ldr	r3, [r1]
-  71 0006 23F04003 		bic	r3, r3, #64
-  72 000a 0B60     		str	r3, [r1]
-  22:Core/Src/ad9518_stm.c ****     hspi1.Instance->CR1 &= ~SPI_CR1_BIDIOE; /* release: chip drives line */
-  73              		.loc 1 22 5 view .LVU9
-  74              		.loc 1 22 10 is_stmt 0 view .LVU10
-  75 000c 1268     		ldr	r2, [r2]
-  76              		.loc 1 22 19 view .LVU11
-  77 000e 1368     		ldr	r3, [r2]
-  78              		.loc 1 22 25 view .LVU12
-  79 0010 23F48043 		bic	r3, r3, #16384
-  80 0014 1360     		str	r3, [r2]
-  23:Core/Src/ad9518_stm.c **** }
-  81              		.loc 1 23 1 view .LVU13
-  82 0016 7047     		bx	lr
-  83              	.L6:
-  84              		.align	2
-  85              	.L5:
-  86 0018 00000000 		.word	hspi1
-  87              		.cfi_endproc
-  88              	.LFE68:
-  90              		.section	.text.stm32_delay_ms,"ax",%progbits
-  91              		.align	1
-  92              		.syntax unified
-  93              		.thumb
-  94              		.thumb_func
-  96              	stm32_delay_ms:
-ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s 			page 3
+  34              		.loc 1 25 5 view .LVU1
+  35              	.LBB15:
+  36              		.loc 1 25 10 view .LVU2
+  37              		.loc 1 25 23 is_stmt 0 view .LVU3
+  38 0002 0023     		movs	r3, #0
+  39 0004 0193     		str	r3, [sp, #4]
+  40              		.loc 1 25 5 view .LVU4
+  41 0006 03E0     		b	.L2
+  42              	.L3:
+  26:Core/Src/ad9518_stm.c ****         __NOP();
+  43              		.loc 1 26 9 is_stmt 1 view .LVU5
+  44              		.syntax unified
+  45              	@ 26 "Core/Src/ad9518_stm.c" 1
+  46 0008 00BF     		nop
+  47              	@ 0 "" 2
+  25:Core/Src/ad9518_stm.c ****     for (volatile int i = 0; i < BB_DELAY_COUNT; i++)
+  48              		.loc 1 25 51 discriminator 3 view .LVU6
+  49              		.thumb
+  50              		.syntax unified
+  51 000a 019B     		ldr	r3, [sp, #4]
+  52 000c 0133     		adds	r3, r3, #1
+  53 000e 0193     		str	r3, [sp, #4]
+  54              	.L2:
+  25:Core/Src/ad9518_stm.c ****     for (volatile int i = 0; i < BB_DELAY_COUNT; i++)
+  55              		.loc 1 25 32 discriminator 1 view .LVU7
+  56 0010 019B     		ldr	r3, [sp, #4]
+  57 0012 C72B     		cmp	r3, #199
+  58 0014 F8DD     		ble	.L3
+  59              	.LBE15:
+  27:Core/Src/ad9518_stm.c **** }
+  60              		.loc 1 27 1 is_stmt 0 view .LVU8
+  61 0016 02B0     		add	sp, sp, #8
+  62              	.LCFI1:
+  63              		.cfi_def_cfa_offset 0
+  64              		@ sp needed
+  65 0018 7047     		bx	lr
+  66              		.cfi_endproc
+  67              	.LFE67:
+  69              		.section	.text.stm32_dbg,"ax",%progbits
+  70              		.align	1
+  71              		.syntax unified
+  72              		.thumb
+  73              		.thumb_func
+  75              	stm32_dbg:
+  76              	.LVL0:
+  77              	.LFB74:
+  28:Core/Src/ad9518_stm.c **** 
+  29:Core/Src/ad9518_stm.c **** static void pin_out(GPIO_TypeDef *p, uint16_t pin)
+  30:Core/Src/ad9518_stm.c **** {
+  31:Core/Src/ad9518_stm.c ****     GPIO_InitTypeDef g = {0};
+  32:Core/Src/ad9518_stm.c ****     g.Pin = pin;
+  33:Core/Src/ad9518_stm.c ****     g.Mode = GPIO_MODE_OUTPUT_PP;
+  34:Core/Src/ad9518_stm.c ****     g.Pull = GPIO_NOPULL;
+  35:Core/Src/ad9518_stm.c ****     g.Speed = GPIO_SPEED_FREQ_HIGH;
+  36:Core/Src/ad9518_stm.c ****     HAL_GPIO_Init(p, &g);
+  37:Core/Src/ad9518_stm.c **** }
+  38:Core/Src/ad9518_stm.c **** static void pin_in(GPIO_TypeDef *p, uint16_t pin)
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s 			page 3
 
 
-  97              	.LVL0:
-  98              	.LFB71:
-  24:Core/Src/ad9518_stm.c **** 
-  25:Core/Src/ad9518_stm.c **** /* ---- WRITE: TX only ----------------------------------------------------- */
-  26:Core/Src/ad9518_stm.c **** static int stm32_spi_write(const uint8_t *buf, uint16_t len)
-  27:Core/Src/ad9518_stm.c **** {
-  28:Core/Src/ad9518_stm.c ****     HAL_StatusTypeDef s;
-  29:Core/Src/ad9518_stm.c ****     cs_low();
-  30:Core/Src/ad9518_stm.c ****     spi_dir_tx();
-  31:Core/Src/ad9518_stm.c ****     s = HAL_SPI_Transmit(&hspi1, (uint8_t *)buf, len, HAL_MAX_DELAY);
-  32:Core/Src/ad9518_stm.c ****     cs_high();
-  33:Core/Src/ad9518_stm.c ****     return (s == HAL_OK) ? 0 : -1;
-  34:Core/Src/ad9518_stm.c **** }
-  35:Core/Src/ad9518_stm.c **** 
-  36:Core/Src/ad9518_stm.c **** /* ---- READ: TX instruction, turn line around, RX data -------------------- */
-  37:Core/Src/ad9518_stm.c **** static int stm32_spi_read(const uint8_t *tx, uint16_t txlen,
-  38:Core/Src/ad9518_stm.c ****                           uint8_t *rx, uint16_t rxlen)
   39:Core/Src/ad9518_stm.c **** {
-  40:Core/Src/ad9518_stm.c ****     HAL_StatusTypeDef s;
-  41:Core/Src/ad9518_stm.c ****     cs_low();
-  42:Core/Src/ad9518_stm.c **** 
-  43:Core/Src/ad9518_stm.c ****     /* Phase 1: send instruction, host drives SDIO */
-  44:Core/Src/ad9518_stm.c ****     spi_dir_tx();
-  45:Core/Src/ad9518_stm.c ****     s = HAL_SPI_Transmit(&hspi1, (uint8_t *)tx, txlen, HAL_MAX_DELAY);
-  46:Core/Src/ad9518_stm.c ****     if (s != HAL_OK)
-  47:Core/Src/ad9518_stm.c ****     {
-  48:Core/Src/ad9518_stm.c ****         cs_high();
-  49:Core/Src/ad9518_stm.c ****         return -1;
-  50:Core/Src/ad9518_stm.c ****     }
-  51:Core/Src/ad9518_stm.c **** 
-  52:Core/Src/ad9518_stm.c ****     /* Phase 2: turn line around; the chip drives SDIO with readback.
-  53:Core/Src/ad9518_stm.c ****      * In half-duplex master RX the clock runs continuously once enabled,
-  54:Core/Src/ad9518_stm.c ****      * so HAL_SPI_Receive handles the fixed count, but we make sure SPI is
-  55:Core/Src/ad9518_stm.c ****      * left disabled afterward to stop clocking. */
-  56:Core/Src/ad9518_stm.c ****     spi_dir_rx();
-  57:Core/Src/ad9518_stm.c ****     s = HAL_SPI_Receive(&hspi1, rx, rxlen, HAL_MAX_DELAY);
-  58:Core/Src/ad9518_stm.c ****     __HAL_SPI_DISABLE(&hspi1); /* stop the continuous clock immediately */
-  59:Core/Src/ad9518_stm.c **** 
-  60:Core/Src/ad9518_stm.c ****     cs_high();
-  61:Core/Src/ad9518_stm.c **** 
-  62:Core/Src/ad9518_stm.c ****     /* Restore to TX (idle) direction for the next write */
-  63:Core/Src/ad9518_stm.c ****     spi_dir_tx();
+  40:Core/Src/ad9518_stm.c ****     GPIO_InitTypeDef g = {0};
+  41:Core/Src/ad9518_stm.c ****     g.Pin = pin;
+  42:Core/Src/ad9518_stm.c ****     g.Mode = GPIO_MODE_INPUT;
+  43:Core/Src/ad9518_stm.c ****     g.Pull = GPIO_PULLUP;
+  44:Core/Src/ad9518_stm.c ****     g.Speed = GPIO_SPEED_FREQ_HIGH;
+  45:Core/Src/ad9518_stm.c ****     HAL_GPIO_Init(p, &g);
+  46:Core/Src/ad9518_stm.c **** }
+  47:Core/Src/ad9518_stm.c **** static void pin_af(GPIO_TypeDef *p, uint16_t pin)
+  48:Core/Src/ad9518_stm.c **** {
+  49:Core/Src/ad9518_stm.c ****     GPIO_InitTypeDef g = {0};
+  50:Core/Src/ad9518_stm.c ****     g.Pin = pin;
+  51:Core/Src/ad9518_stm.c ****     g.Mode = GPIO_MODE_AF_PP;
+  52:Core/Src/ad9518_stm.c ****     g.Pull = GPIO_NOPULL;
+  53:Core/Src/ad9518_stm.c ****     g.Speed = GPIO_SPEED_FREQ_HIGH;
+  54:Core/Src/ad9518_stm.c ****     HAL_GPIO_Init(p, &g);
+  55:Core/Src/ad9518_stm.c **** }
+  56:Core/Src/ad9518_stm.c **** 
+  57:Core/Src/ad9518_stm.c **** /* WRITE: hardware SPI half-duplex TX (reliable direction). */
+  58:Core/Src/ad9518_stm.c **** static int stm32_spi_write(const uint8_t *buf, uint16_t len)
+  59:Core/Src/ad9518_stm.c **** {
+  60:Core/Src/ad9518_stm.c ****     pin_af(SCK_PORT, SCK_PIN);
+  61:Core/Src/ad9518_stm.c ****     pin_af(SDIO_PORT, SDIO_PIN);
+  62:Core/Src/ad9518_stm.c ****     hspi1.Instance->CR1 &= ~SPI_CR1_SPE_BIT;
+  63:Core/Src/ad9518_stm.c ****     hspi1.Instance->CR1 |= SPI_CR1_BIDIOE_BIT; /* drive output */
+  64:Core/Src/ad9518_stm.c ****     hspi1.Instance->CR1 |= SPI_CR1_SPE_BIT;
+  65:Core/Src/ad9518_stm.c **** 
+  66:Core/Src/ad9518_stm.c ****     cs_low();
+  67:Core/Src/ad9518_stm.c ****     HAL_StatusTypeDef s = HAL_SPI_Transmit(&hspi1, (uint8_t *)buf, len, HAL_MAX_DELAY);
+  68:Core/Src/ad9518_stm.c ****     while (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_BSY))
+  69:Core/Src/ad9518_stm.c ****     {
+  70:Core/Src/ad9518_stm.c ****     }
+  71:Core/Src/ad9518_stm.c ****     cs_high();
+  72:Core/Src/ad9518_stm.c **** 
+  73:Core/Src/ad9518_stm.c ****     hspi1.Instance->CR1 &= ~SPI_CR1_SPE_BIT;
+  74:Core/Src/ad9518_stm.c ****     return (s == HAL_OK) ? 0 : -1;
+  75:Core/Src/ad9518_stm.c **** }
+  76:Core/Src/ad9518_stm.c **** 
+  77:Core/Src/ad9518_stm.c **** /* READ: bit-banged, explicit turnaround dead-time to survive half-duplex. */
+  78:Core/Src/ad9518_stm.c **** static int stm32_spi_read(const uint8_t *tx, uint16_t txlen,
+  79:Core/Src/ad9518_stm.c ****                           uint8_t *rx, uint16_t rxlen)
+  80:Core/Src/ad9518_stm.c **** {
+  81:Core/Src/ad9518_stm.c ****     hspi1.Instance->CR1 &= ~SPI_CR1_SPE_BIT;
+  82:Core/Src/ad9518_stm.c ****     pin_out(SCK_PORT, SCK_PIN);
+  83:Core/Src/ad9518_stm.c ****     pin_out(SDIO_PORT, SDIO_PIN);
+  84:Core/Src/ad9518_stm.c ****     HAL_GPIO_WritePin(SCK_PORT, SCK_PIN, GPIO_PIN_RESET);
+  85:Core/Src/ad9518_stm.c **** 
+  86:Core/Src/ad9518_stm.c ****     cs_low();
+  87:Core/Src/ad9518_stm.c ****     bb();
+  88:Core/Src/ad9518_stm.c **** 
+  89:Core/Src/ad9518_stm.c ****     for (uint16_t byi = 0; byi < txlen; byi++)
+  90:Core/Src/ad9518_stm.c ****     {
+  91:Core/Src/ad9518_stm.c ****         for (int bit = 7; bit >= 0; bit--)
+  92:Core/Src/ad9518_stm.c ****         {
+  93:Core/Src/ad9518_stm.c ****             HAL_GPIO_WritePin(SDIO_PORT, SDIO_PIN,
+  94:Core/Src/ad9518_stm.c ****                               (tx[byi] & (1 << bit)) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+  95:Core/Src/ad9518_stm.c ****             bb();
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s 			page 4
+
+
+  96:Core/Src/ad9518_stm.c ****             HAL_GPIO_WritePin(SCK_PORT, SCK_PIN, GPIO_PIN_SET);
+  97:Core/Src/ad9518_stm.c ****             bb();
+  98:Core/Src/ad9518_stm.c ****             HAL_GPIO_WritePin(SCK_PORT, SCK_PIN, GPIO_PIN_RESET);
+  99:Core/Src/ad9518_stm.c ****         }
+ 100:Core/Src/ad9518_stm.c ****     }
+ 101:Core/Src/ad9518_stm.c **** 
+ 102:Core/Src/ad9518_stm.c ****     pin_in(SDIO_PORT, SDIO_PIN); /* turnaround */
+ 103:Core/Src/ad9518_stm.c ****     bb();
+ 104:Core/Src/ad9518_stm.c ****     bb();
+ 105:Core/Src/ad9518_stm.c ****     bb();
+ 106:Core/Src/ad9518_stm.c **** 
+ 107:Core/Src/ad9518_stm.c ****     for (uint16_t byi = 0; byi < rxlen; byi++)
+ 108:Core/Src/ad9518_stm.c ****     {
+ 109:Core/Src/ad9518_stm.c ****         uint8_t v = 0;
+ 110:Core/Src/ad9518_stm.c ****         for (int bit = 7; bit >= 0; bit--)
+ 111:Core/Src/ad9518_stm.c ****         {
+ 112:Core/Src/ad9518_stm.c ****             HAL_GPIO_WritePin(SCK_PORT, SCK_PIN, GPIO_PIN_SET);
+ 113:Core/Src/ad9518_stm.c ****             bb();
+ 114:Core/Src/ad9518_stm.c ****             HAL_GPIO_WritePin(SCK_PORT, SCK_PIN, GPIO_PIN_RESET);
+ 115:Core/Src/ad9518_stm.c ****             bb();
+ 116:Core/Src/ad9518_stm.c ****             if (HAL_GPIO_ReadPin(SDIO_PORT, SDIO_PIN) == GPIO_PIN_SET)
+ 117:Core/Src/ad9518_stm.c ****                 v |= (1 << bit);
+ 118:Core/Src/ad9518_stm.c ****         }
+ 119:Core/Src/ad9518_stm.c ****         rx[byi] = v;
+ 120:Core/Src/ad9518_stm.c ****     }
+ 121:Core/Src/ad9518_stm.c **** 
+ 122:Core/Src/ad9518_stm.c ****     cs_high();
+ 123:Core/Src/ad9518_stm.c ****     pin_af(SCK_PORT, SCK_PIN);
+ 124:Core/Src/ad9518_stm.c ****     pin_af(SDIO_PORT, SDIO_PIN);
+ 125:Core/Src/ad9518_stm.c ****     return 0;
+ 126:Core/Src/ad9518_stm.c **** }
+ 127:Core/Src/ad9518_stm.c **** 
+ 128:Core/Src/ad9518_stm.c **** static void stm32_delay_ms(uint32_t ms) { HAL_Delay(ms); }
+ 129:Core/Src/ad9518_stm.c **** 
+ 130:Core/Src/ad9518_stm.c **** static void stm32_dbg(const char *s)
+ 131:Core/Src/ad9518_stm.c **** {
+  78              		.loc 1 131 1 is_stmt 1 view -0
+  79              		.cfi_startproc
+  80              		@ args = 0, pretend = 0, frame = 0
+  81              		@ frame_needed = 0, uses_anonymous_args = 0
+  82              		.loc 1 131 1 is_stmt 0 view .LVU10
+  83 0000 10B5     		push	{r4, lr}
+  84              	.LCFI2:
+  85              		.cfi_def_cfa_offset 8
+  86              		.cfi_offset 4, -8
+  87              		.cfi_offset 14, -4
+  88 0002 0446     		mov	r4, r0
+ 132:Core/Src/ad9518_stm.c ****     HAL_UART_Transmit(&huart1, (const uint8_t *)s, (uint16_t)strlen(s), HAL_MAX_DELAY);
+  89              		.loc 1 132 5 is_stmt 1 view .LVU11
+  90              		.loc 1 132 62 is_stmt 0 view .LVU12
+  91 0004 FFF7FEFF 		bl	strlen
+  92              	.LVL1:
+  93              		.loc 1 132 5 discriminator 1 view .LVU13
+  94 0008 4FF0FF33 		mov	r3, #-1
+  95 000c 82B2     		uxth	r2, r0
+  96 000e 2146     		mov	r1, r4
+  97 0010 0148     		ldr	r0, .L7
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s 			page 5
+
+
+  98 0012 FFF7FEFF 		bl	HAL_UART_Transmit
+  99              	.LVL2:
+ 133:Core/Src/ad9518_stm.c **** }
+ 100              		.loc 1 133 1 view .LVU14
+ 101 0016 10BD     		pop	{r4, pc}
+ 102              	.LVL3:
+ 103              	.L8:
+ 104              		.loc 1 133 1 view .LVU15
+ 105              		.align	2
+ 106              	.L7:
+ 107 0018 00000000 		.word	huart1
+ 108              		.cfi_endproc
+ 109              	.LFE74:
+ 111              		.section	.text.stm32_delay_ms,"ax",%progbits
+ 112              		.align	1
+ 113              		.syntax unified
+ 114              		.thumb
+ 115              		.thumb_func
+ 117              	stm32_delay_ms:
+ 118              	.LVL4:
+ 119              	.LFB73:
+ 128:Core/Src/ad9518_stm.c **** 
+ 120              		.loc 1 128 41 is_stmt 1 view -0
+ 121              		.cfi_startproc
+ 122              		@ args = 0, pretend = 0, frame = 0
+ 123              		@ frame_needed = 0, uses_anonymous_args = 0
+ 128:Core/Src/ad9518_stm.c **** 
+ 124              		.loc 1 128 41 is_stmt 0 view .LVU17
+ 125 0000 08B5     		push	{r3, lr}
+ 126              	.LCFI3:
+ 127              		.cfi_def_cfa_offset 8
+ 128              		.cfi_offset 3, -8
+ 129              		.cfi_offset 14, -4
+ 128:Core/Src/ad9518_stm.c **** 
+ 130              		.loc 1 128 43 is_stmt 1 view .LVU18
+ 131 0002 FFF7FEFF 		bl	HAL_Delay
+ 132              	.LVL5:
+ 128:Core/Src/ad9518_stm.c **** 
+ 133              		.loc 1 128 58 is_stmt 0 view .LVU19
+ 134 0006 08BD     		pop	{r3, pc}
+ 135              		.cfi_endproc
+ 136              	.LFE73:
+ 138              		.section	.text.pin_out,"ax",%progbits
+ 139              		.align	1
+ 140              		.syntax unified
+ 141              		.thumb
+ 142              		.thumb_func
+ 144              	pin_out:
+ 145              	.LVL6:
+ 146              	.LFB68:
+  30:Core/Src/ad9518_stm.c ****     GPIO_InitTypeDef g = {0};
+ 147              		.loc 1 30 1 is_stmt 1 view -0
+ 148              		.cfi_startproc
+ 149              		@ args = 0, pretend = 0, frame = 16
+ 150              		@ frame_needed = 0, uses_anonymous_args = 0
+  30:Core/Src/ad9518_stm.c ****     GPIO_InitTypeDef g = {0};
+ 151              		.loc 1 30 1 is_stmt 0 view .LVU21
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s 			page 6
+
+
+ 152 0000 00B5     		push	{lr}
+ 153              	.LCFI4:
+ 154              		.cfi_def_cfa_offset 4
+ 155              		.cfi_offset 14, -4
+ 156 0002 85B0     		sub	sp, sp, #20
+ 157              	.LCFI5:
+ 158              		.cfi_def_cfa_offset 24
+  31:Core/Src/ad9518_stm.c ****     g.Pin = pin;
+ 159              		.loc 1 31 5 is_stmt 1 view .LVU22
+  31:Core/Src/ad9518_stm.c ****     g.Pin = pin;
+ 160              		.loc 1 31 22 is_stmt 0 view .LVU23
+ 161 0004 0022     		movs	r2, #0
+ 162 0006 0092     		str	r2, [sp]
+ 163 0008 0192     		str	r2, [sp, #4]
+ 164 000a 0292     		str	r2, [sp, #8]
+ 165 000c 0392     		str	r2, [sp, #12]
+  32:Core/Src/ad9518_stm.c ****     g.Mode = GPIO_MODE_OUTPUT_PP;
+ 166              		.loc 1 32 5 is_stmt 1 view .LVU24
+  32:Core/Src/ad9518_stm.c ****     g.Mode = GPIO_MODE_OUTPUT_PP;
+ 167              		.loc 1 32 11 is_stmt 0 view .LVU25
+ 168 000e 0091     		str	r1, [sp]
+  33:Core/Src/ad9518_stm.c ****     g.Pull = GPIO_NOPULL;
+ 169              		.loc 1 33 5 is_stmt 1 view .LVU26
+  33:Core/Src/ad9518_stm.c ****     g.Pull = GPIO_NOPULL;
+ 170              		.loc 1 33 12 is_stmt 0 view .LVU27
+ 171 0010 0122     		movs	r2, #1
+ 172 0012 0192     		str	r2, [sp, #4]
+  34:Core/Src/ad9518_stm.c ****     g.Speed = GPIO_SPEED_FREQ_HIGH;
+ 173              		.loc 1 34 5 is_stmt 1 view .LVU28
+  35:Core/Src/ad9518_stm.c ****     HAL_GPIO_Init(p, &g);
+ 174              		.loc 1 35 5 view .LVU29
+  35:Core/Src/ad9518_stm.c ****     HAL_GPIO_Init(p, &g);
+ 175              		.loc 1 35 13 is_stmt 0 view .LVU30
+ 176 0014 0322     		movs	r2, #3
+ 177 0016 0392     		str	r2, [sp, #12]
+  36:Core/Src/ad9518_stm.c **** }
+ 178              		.loc 1 36 5 is_stmt 1 view .LVU31
+ 179 0018 6946     		mov	r1, sp
+ 180              	.LVL7:
+  36:Core/Src/ad9518_stm.c **** }
+ 181              		.loc 1 36 5 is_stmt 0 view .LVU32
+ 182 001a FFF7FEFF 		bl	HAL_GPIO_Init
+ 183              	.LVL8:
+  37:Core/Src/ad9518_stm.c **** static void pin_in(GPIO_TypeDef *p, uint16_t pin)
+ 184              		.loc 1 37 1 view .LVU33
+ 185 001e 05B0     		add	sp, sp, #20
+ 186              	.LCFI6:
+ 187              		.cfi_def_cfa_offset 4
+ 188              		@ sp needed
+ 189 0020 5DF804FB 		ldr	pc, [sp], #4
+ 190              		.cfi_endproc
+ 191              	.LFE68:
+ 193              		.section	.text.pin_in,"ax",%progbits
+ 194              		.align	1
+ 195              		.syntax unified
+ 196              		.thumb
+ 197              		.thumb_func
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s 			page 7
+
+
+ 199              	pin_in:
+ 200              	.LVL9:
+ 201              	.LFB69:
+  39:Core/Src/ad9518_stm.c ****     GPIO_InitTypeDef g = {0};
+ 202              		.loc 1 39 1 is_stmt 1 view -0
+ 203              		.cfi_startproc
+ 204              		@ args = 0, pretend = 0, frame = 16
+ 205              		@ frame_needed = 0, uses_anonymous_args = 0
+  39:Core/Src/ad9518_stm.c ****     GPIO_InitTypeDef g = {0};
+ 206              		.loc 1 39 1 is_stmt 0 view .LVU35
+ 207 0000 00B5     		push	{lr}
+ 208              	.LCFI7:
+ 209              		.cfi_def_cfa_offset 4
+ 210              		.cfi_offset 14, -4
+ 211 0002 85B0     		sub	sp, sp, #20
+ 212              	.LCFI8:
+ 213              		.cfi_def_cfa_offset 24
+  40:Core/Src/ad9518_stm.c ****     g.Pin = pin;
+ 214              		.loc 1 40 5 is_stmt 1 view .LVU36
+  40:Core/Src/ad9518_stm.c ****     g.Pin = pin;
+ 215              		.loc 1 40 22 is_stmt 0 view .LVU37
+ 216 0004 0022     		movs	r2, #0
+ 217 0006 0092     		str	r2, [sp]
+ 218 0008 0192     		str	r2, [sp, #4]
+ 219 000a 0292     		str	r2, [sp, #8]
+ 220 000c 0392     		str	r2, [sp, #12]
+  41:Core/Src/ad9518_stm.c ****     g.Mode = GPIO_MODE_INPUT;
+ 221              		.loc 1 41 5 is_stmt 1 view .LVU38
+  41:Core/Src/ad9518_stm.c ****     g.Mode = GPIO_MODE_INPUT;
+ 222              		.loc 1 41 11 is_stmt 0 view .LVU39
+ 223 000e 0091     		str	r1, [sp]
+  42:Core/Src/ad9518_stm.c ****     g.Pull = GPIO_PULLUP;
+ 224              		.loc 1 42 5 is_stmt 1 view .LVU40
+  43:Core/Src/ad9518_stm.c ****     g.Speed = GPIO_SPEED_FREQ_HIGH;
+ 225              		.loc 1 43 5 view .LVU41
+  43:Core/Src/ad9518_stm.c ****     g.Speed = GPIO_SPEED_FREQ_HIGH;
+ 226              		.loc 1 43 12 is_stmt 0 view .LVU42
+ 227 0010 0122     		movs	r2, #1
+ 228 0012 0292     		str	r2, [sp, #8]
+  44:Core/Src/ad9518_stm.c ****     HAL_GPIO_Init(p, &g);
+ 229              		.loc 1 44 5 is_stmt 1 view .LVU43
+  44:Core/Src/ad9518_stm.c ****     HAL_GPIO_Init(p, &g);
+ 230              		.loc 1 44 13 is_stmt 0 view .LVU44
+ 231 0014 0322     		movs	r2, #3
+ 232 0016 0392     		str	r2, [sp, #12]
+  45:Core/Src/ad9518_stm.c **** }
+ 233              		.loc 1 45 5 is_stmt 1 view .LVU45
+ 234 0018 6946     		mov	r1, sp
+ 235              	.LVL10:
+  45:Core/Src/ad9518_stm.c **** }
+ 236              		.loc 1 45 5 is_stmt 0 view .LVU46
+ 237 001a FFF7FEFF 		bl	HAL_GPIO_Init
+ 238              	.LVL11:
+  46:Core/Src/ad9518_stm.c **** static void pin_af(GPIO_TypeDef *p, uint16_t pin)
+ 239              		.loc 1 46 1 view .LVU47
+ 240 001e 05B0     		add	sp, sp, #20
+ 241              	.LCFI9:
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s 			page 8
+
+
+ 242              		.cfi_def_cfa_offset 4
+ 243              		@ sp needed
+ 244 0020 5DF804FB 		ldr	pc, [sp], #4
+ 245              		.cfi_endproc
+ 246              	.LFE69:
+ 248              		.section	.text.pin_af,"ax",%progbits
+ 249              		.align	1
+ 250              		.syntax unified
+ 251              		.thumb
+ 252              		.thumb_func
+ 254              	pin_af:
+ 255              	.LVL12:
+ 256              	.LFB70:
+  48:Core/Src/ad9518_stm.c ****     GPIO_InitTypeDef g = {0};
+ 257              		.loc 1 48 1 is_stmt 1 view -0
+ 258              		.cfi_startproc
+ 259              		@ args = 0, pretend = 0, frame = 16
+ 260              		@ frame_needed = 0, uses_anonymous_args = 0
+  48:Core/Src/ad9518_stm.c ****     GPIO_InitTypeDef g = {0};
+ 261              		.loc 1 48 1 is_stmt 0 view .LVU49
+ 262 0000 00B5     		push	{lr}
+ 263              	.LCFI10:
+ 264              		.cfi_def_cfa_offset 4
+ 265              		.cfi_offset 14, -4
+ 266 0002 85B0     		sub	sp, sp, #20
+ 267              	.LCFI11:
+ 268              		.cfi_def_cfa_offset 24
+  49:Core/Src/ad9518_stm.c ****     g.Pin = pin;
+ 269              		.loc 1 49 5 is_stmt 1 view .LVU50
+  49:Core/Src/ad9518_stm.c ****     g.Pin = pin;
+ 270              		.loc 1 49 22 is_stmt 0 view .LVU51
+ 271 0004 0022     		movs	r2, #0
+ 272 0006 0092     		str	r2, [sp]
+ 273 0008 0192     		str	r2, [sp, #4]
+ 274 000a 0292     		str	r2, [sp, #8]
+ 275 000c 0392     		str	r2, [sp, #12]
+  50:Core/Src/ad9518_stm.c ****     g.Mode = GPIO_MODE_AF_PP;
+ 276              		.loc 1 50 5 is_stmt 1 view .LVU52
+  50:Core/Src/ad9518_stm.c ****     g.Mode = GPIO_MODE_AF_PP;
+ 277              		.loc 1 50 11 is_stmt 0 view .LVU53
+ 278 000e 0091     		str	r1, [sp]
+  51:Core/Src/ad9518_stm.c ****     g.Pull = GPIO_NOPULL;
+ 279              		.loc 1 51 5 is_stmt 1 view .LVU54
+  51:Core/Src/ad9518_stm.c ****     g.Pull = GPIO_NOPULL;
+ 280              		.loc 1 51 12 is_stmt 0 view .LVU55
+ 281 0010 0222     		movs	r2, #2
+ 282 0012 0192     		str	r2, [sp, #4]
+  52:Core/Src/ad9518_stm.c ****     g.Speed = GPIO_SPEED_FREQ_HIGH;
+ 283              		.loc 1 52 5 is_stmt 1 view .LVU56
+  53:Core/Src/ad9518_stm.c ****     HAL_GPIO_Init(p, &g);
+ 284              		.loc 1 53 5 view .LVU57
+  53:Core/Src/ad9518_stm.c ****     HAL_GPIO_Init(p, &g);
+ 285              		.loc 1 53 13 is_stmt 0 view .LVU58
+ 286 0014 0322     		movs	r2, #3
+ 287 0016 0392     		str	r2, [sp, #12]
+  54:Core/Src/ad9518_stm.c **** }
+ 288              		.loc 1 54 5 is_stmt 1 view .LVU59
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s 			page 9
+
+
+ 289 0018 6946     		mov	r1, sp
+ 290              	.LVL13:
+  54:Core/Src/ad9518_stm.c **** }
+ 291              		.loc 1 54 5 is_stmt 0 view .LVU60
+ 292 001a FFF7FEFF 		bl	HAL_GPIO_Init
+ 293              	.LVL14:
+  55:Core/Src/ad9518_stm.c **** 
+ 294              		.loc 1 55 1 view .LVU61
+ 295 001e 05B0     		add	sp, sp, #20
+ 296              	.LCFI12:
+ 297              		.cfi_def_cfa_offset 4
+ 298              		@ sp needed
+ 299 0020 5DF804FB 		ldr	pc, [sp], #4
+ 300              		.cfi_endproc
+ 301              	.LFE70:
+ 303              		.section	.text.stm32_spi_read,"ax",%progbits
+ 304              		.align	1
+ 305              		.syntax unified
+ 306              		.thumb
+ 307              		.thumb_func
+ 309              	stm32_spi_read:
+ 310              	.LVL15:
+ 311              	.LFB72:
+  80:Core/Src/ad9518_stm.c ****     hspi1.Instance->CR1 &= ~SPI_CR1_SPE_BIT;
+ 312              		.loc 1 80 1 is_stmt 1 view -0
+ 313              		.cfi_startproc
+ 314              		@ args = 0, pretend = 0, frame = 0
+ 315              		@ frame_needed = 0, uses_anonymous_args = 0
+  80:Core/Src/ad9518_stm.c ****     hspi1.Instance->CR1 &= ~SPI_CR1_SPE_BIT;
+ 316              		.loc 1 80 1 is_stmt 0 view .LVU63
+ 317 0000 2DE9F047 		push	{r4, r5, r6, r7, r8, r9, r10, lr}
+ 318              	.LCFI13:
+ 319              		.cfi_def_cfa_offset 32
+ 320              		.cfi_offset 4, -32
+ 321              		.cfi_offset 5, -28
+ 322              		.cfi_offset 6, -24
+ 323              		.cfi_offset 7, -20
+ 324              		.cfi_offset 8, -16
+ 325              		.cfi_offset 9, -12
+ 326              		.cfi_offset 10, -8
+ 327              		.cfi_offset 14, -4
+ 328 0004 0746     		mov	r7, r0
+ 329 0006 8A46     		mov	r10, r1
+ 330 0008 9146     		mov	r9, r2
+ 331 000a 9846     		mov	r8, r3
+  81:Core/Src/ad9518_stm.c ****     pin_out(SCK_PORT, SCK_PIN);
+ 332              		.loc 1 81 5 is_stmt 1 view .LVU64
+  81:Core/Src/ad9518_stm.c ****     pin_out(SCK_PORT, SCK_PIN);
+ 333              		.loc 1 81 10 is_stmt 0 view .LVU65
+ 334 000c 3F4B     		ldr	r3, .L31
+ 335              	.LVL16:
+  81:Core/Src/ad9518_stm.c ****     pin_out(SCK_PORT, SCK_PIN);
+ 336              		.loc 1 81 10 view .LVU66
+ 337 000e 1A68     		ldr	r2, [r3]
+ 338              	.LVL17:
+  81:Core/Src/ad9518_stm.c ****     pin_out(SCK_PORT, SCK_PIN);
+ 339              		.loc 1 81 19 view .LVU67
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s 			page 10
+
+
+ 340 0010 1368     		ldr	r3, [r2]
+  81:Core/Src/ad9518_stm.c ****     pin_out(SCK_PORT, SCK_PIN);
+ 341              		.loc 1 81 25 view .LVU68
+ 342 0012 23F04003 		bic	r3, r3, #64
+ 343 0016 1360     		str	r3, [r2]
+  82:Core/Src/ad9518_stm.c ****     pin_out(SDIO_PORT, SDIO_PIN);
+ 344              		.loc 1 82 5 is_stmt 1 view .LVU69
+ 345 0018 3D4C     		ldr	r4, .L31+4
+ 346 001a 2021     		movs	r1, #32
+ 347              	.LVL18:
+  82:Core/Src/ad9518_stm.c ****     pin_out(SDIO_PORT, SDIO_PIN);
+ 348              		.loc 1 82 5 is_stmt 0 view .LVU70
+ 349 001c 2046     		mov	r0, r4
+ 350              	.LVL19:
+  82:Core/Src/ad9518_stm.c ****     pin_out(SDIO_PORT, SDIO_PIN);
+ 351              		.loc 1 82 5 view .LVU71
+ 352 001e FFF7FEFF 		bl	pin_out
+ 353              	.LVL20:
+  83:Core/Src/ad9518_stm.c ****     HAL_GPIO_WritePin(SCK_PORT, SCK_PIN, GPIO_PIN_RESET);
+ 354              		.loc 1 83 5 is_stmt 1 view .LVU72
+ 355 0022 8021     		movs	r1, #128
+ 356 0024 2046     		mov	r0, r4
+ 357 0026 FFF7FEFF 		bl	pin_out
+ 358              	.LVL21:
+  84:Core/Src/ad9518_stm.c **** 
+ 359              		.loc 1 84 5 view .LVU73
+ 360 002a 0022     		movs	r2, #0
+ 361 002c 2021     		movs	r1, #32
+ 362 002e 2046     		mov	r0, r4
+ 363 0030 FFF7FEFF 		bl	HAL_GPIO_WritePin
+ 364              	.LVL22:
+  86:Core/Src/ad9518_stm.c ****     bb();
+ 365              		.loc 1 86 5 view .LVU74
+ 366              	.LBB16:
+ 367              	.LBI16:
+  21:Core/Src/ad9518_stm.c **** static inline void cs_high(void) { HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_SET); }
+ 368              		.loc 1 21 20 view .LVU75
+ 369              	.LBB17:
+  21:Core/Src/ad9518_stm.c **** static inline void cs_high(void) { HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_SET); }
+ 370              		.loc 1 21 35 view .LVU76
+ 371 0034 0022     		movs	r2, #0
+ 372 0036 0821     		movs	r1, #8
+ 373 0038 2046     		mov	r0, r4
+ 374 003a FFF7FEFF 		bl	HAL_GPIO_WritePin
+ 375              	.LVL23:
+ 376              	.LBE17:
+ 377              	.LBE16:
+  87:Core/Src/ad9518_stm.c **** 
+ 378              		.loc 1 87 5 view .LVU77
+ 379 003e FFF7FEFF 		bl	bb
+ 380              	.LVL24:
+  89:Core/Src/ad9518_stm.c ****     {
+ 381              		.loc 1 89 5 view .LVU78
+ 382              	.LBB18:
+  89:Core/Src/ad9518_stm.c ****     {
+ 383              		.loc 1 89 10 view .LVU79
+  89:Core/Src/ad9518_stm.c ****     {
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s 			page 11
+
+
+ 384              		.loc 1 89 19 is_stmt 0 view .LVU80
+ 385 0042 0026     		movs	r6, #0
+  89:Core/Src/ad9518_stm.c ****     {
+ 386              		.loc 1 89 5 view .LVU81
+ 387 0044 1BE0     		b	.L18
+ 388              	.LVL25:
+ 389              	.L19:
+ 390              	.LBB19:
+  93:Core/Src/ad9518_stm.c ****                               (tx[byi] & (1 << bit)) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+ 391              		.loc 1 93 13 is_stmt 1 view .LVU82
+  94:Core/Src/ad9518_stm.c ****             bb();
+ 392              		.loc 1 94 34 is_stmt 0 view .LVU83
+ 393 0046 BA5D     		ldrb	r2, [r7, r6]	@ zero_extendqisi2
+  94:Core/Src/ad9518_stm.c ****             bb();
+ 394              		.loc 1 94 54 view .LVU84
+ 395 0048 2241     		asrs	r2, r2, r4
+  93:Core/Src/ad9518_stm.c ****                               (tx[byi] & (1 << bit)) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+ 396              		.loc 1 93 13 view .LVU85
+ 397 004a 314D     		ldr	r5, .L31+4
+ 398 004c 02F00102 		and	r2, r2, #1
+ 399 0050 8021     		movs	r1, #128
+ 400 0052 2846     		mov	r0, r5
+ 401 0054 FFF7FEFF 		bl	HAL_GPIO_WritePin
+ 402              	.LVL26:
+  95:Core/Src/ad9518_stm.c ****             HAL_GPIO_WritePin(SCK_PORT, SCK_PIN, GPIO_PIN_SET);
+ 403              		.loc 1 95 13 is_stmt 1 view .LVU86
+ 404 0058 FFF7FEFF 		bl	bb
+ 405              	.LVL27:
+  96:Core/Src/ad9518_stm.c ****             bb();
+ 406              		.loc 1 96 13 view .LVU87
+ 407 005c 0122     		movs	r2, #1
+ 408 005e 2021     		movs	r1, #32
+ 409 0060 2846     		mov	r0, r5
+ 410 0062 FFF7FEFF 		bl	HAL_GPIO_WritePin
+ 411              	.LVL28:
+  97:Core/Src/ad9518_stm.c ****             HAL_GPIO_WritePin(SCK_PORT, SCK_PIN, GPIO_PIN_RESET);
+ 412              		.loc 1 97 13 view .LVU88
+ 413 0066 FFF7FEFF 		bl	bb
+ 414              	.LVL29:
+  98:Core/Src/ad9518_stm.c ****         }
+ 415              		.loc 1 98 13 view .LVU89
+ 416 006a 0022     		movs	r2, #0
+ 417 006c 2021     		movs	r1, #32
+ 418 006e 2846     		mov	r0, r5
+ 419 0070 FFF7FEFF 		bl	HAL_GPIO_WritePin
+ 420              	.LVL30:
+  91:Core/Src/ad9518_stm.c ****         {
+ 421              		.loc 1 91 40 discriminator 3 view .LVU90
+ 422 0074 013C     		subs	r4, r4, #1
+ 423              	.LVL31:
+ 424              	.L20:
+  91:Core/Src/ad9518_stm.c ****         {
+ 425              		.loc 1 91 31 discriminator 1 view .LVU91
+ 426 0076 002C     		cmp	r4, #0
+ 427 0078 E5DA     		bge	.L19
+ 428              	.LBE19:
+  89:Core/Src/ad9518_stm.c ****     {
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s 			page 12
+
+
+ 429              		.loc 1 89 44 discriminator 2 view .LVU92
+ 430 007a 0136     		adds	r6, r6, #1
+ 431              	.LVL32:
+  89:Core/Src/ad9518_stm.c ****     {
+ 432              		.loc 1 89 44 is_stmt 0 discriminator 2 view .LVU93
+ 433 007c B6B2     		uxth	r6, r6
+ 434              	.LVL33:
+ 435              	.L18:
+  89:Core/Src/ad9518_stm.c ****     {
+ 436              		.loc 1 89 32 is_stmt 1 discriminator 1 view .LVU94
+ 437 007e 5645     		cmp	r6, r10
+ 438 0080 01D2     		bcs	.L28
+ 439              	.LBB20:
+  91:Core/Src/ad9518_stm.c ****         {
+ 440              		.loc 1 91 18 is_stmt 0 view .LVU95
+ 441 0082 0724     		movs	r4, #7
+ 442 0084 F7E7     		b	.L20
+ 443              	.L28:
+ 444              	.LBE20:
+ 445              	.LBE18:
+ 102:Core/Src/ad9518_stm.c ****     bb();
+ 446              		.loc 1 102 5 is_stmt 1 view .LVU96
+ 447 0086 8021     		movs	r1, #128
+ 448 0088 2148     		ldr	r0, .L31+4
+ 449 008a FFF7FEFF 		bl	pin_in
+ 450              	.LVL34:
+ 103:Core/Src/ad9518_stm.c ****     bb();
+ 451              		.loc 1 103 5 view .LVU97
+ 452 008e FFF7FEFF 		bl	bb
+ 453              	.LVL35:
+ 104:Core/Src/ad9518_stm.c ****     bb();
+ 454              		.loc 1 104 5 view .LVU98
+ 455 0092 FFF7FEFF 		bl	bb
+ 456              	.LVL36:
+ 105:Core/Src/ad9518_stm.c **** 
+ 457              		.loc 1 105 5 view .LVU99
+ 458 0096 FFF7FEFF 		bl	bb
+ 459              	.LVL37:
+ 107:Core/Src/ad9518_stm.c ****     {
+ 460              		.loc 1 107 5 view .LVU100
+ 461              	.LBB21:
+ 107:Core/Src/ad9518_stm.c ****     {
+ 462              		.loc 1 107 10 view .LVU101
+ 107:Core/Src/ad9518_stm.c ****     {
+ 463              		.loc 1 107 19 is_stmt 0 view .LVU102
+ 464 009a 0026     		movs	r6, #0
+ 465              	.LVL38:
+ 107:Core/Src/ad9518_stm.c ****     {
+ 466              		.loc 1 107 5 view .LVU103
+ 467 009c 20E0     		b	.L21
+ 468              	.LVL39:
+ 469              	.L22:
+ 470              	.LBB22:
+ 471              	.LBB23:
+ 110:Core/Src/ad9518_stm.c ****         {
+ 472              		.loc 1 110 40 is_stmt 1 discriminator 2 view .LVU104
+ 473 009e 013D     		subs	r5, r5, #1
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s 			page 13
+
+
+ 474              	.LVL40:
+ 475              	.L24:
+ 110:Core/Src/ad9518_stm.c ****         {
+ 476              		.loc 1 110 31 discriminator 1 view .LVU105
+ 477 00a0 002D     		cmp	r5, #0
+ 478 00a2 19DB     		blt	.L29
+ 112:Core/Src/ad9518_stm.c ****             bb();
+ 479              		.loc 1 112 13 view .LVU106
+ 480 00a4 1A4C     		ldr	r4, .L31+4
+ 481 00a6 0122     		movs	r2, #1
+ 482 00a8 2021     		movs	r1, #32
+ 483 00aa 2046     		mov	r0, r4
+ 484 00ac FFF7FEFF 		bl	HAL_GPIO_WritePin
+ 485              	.LVL41:
+ 113:Core/Src/ad9518_stm.c ****             HAL_GPIO_WritePin(SCK_PORT, SCK_PIN, GPIO_PIN_RESET);
+ 486              		.loc 1 113 13 view .LVU107
+ 487 00b0 FFF7FEFF 		bl	bb
+ 488              	.LVL42:
+ 114:Core/Src/ad9518_stm.c ****             bb();
+ 489              		.loc 1 114 13 view .LVU108
+ 490 00b4 0022     		movs	r2, #0
+ 491 00b6 2021     		movs	r1, #32
+ 492 00b8 2046     		mov	r0, r4
+ 493 00ba FFF7FEFF 		bl	HAL_GPIO_WritePin
+ 494              	.LVL43:
+ 115:Core/Src/ad9518_stm.c ****             if (HAL_GPIO_ReadPin(SDIO_PORT, SDIO_PIN) == GPIO_PIN_SET)
+ 495              		.loc 1 115 13 view .LVU109
+ 496 00be FFF7FEFF 		bl	bb
+ 497              	.LVL44:
+ 116:Core/Src/ad9518_stm.c ****                 v |= (1 << bit);
+ 498              		.loc 1 116 13 view .LVU110
+ 116:Core/Src/ad9518_stm.c ****                 v |= (1 << bit);
+ 499              		.loc 1 116 17 is_stmt 0 view .LVU111
+ 500 00c2 8021     		movs	r1, #128
+ 501 00c4 2046     		mov	r0, r4
+ 502 00c6 FFF7FEFF 		bl	HAL_GPIO_ReadPin
+ 503              	.LVL45:
+ 116:Core/Src/ad9518_stm.c ****                 v |= (1 << bit);
+ 504              		.loc 1 116 16 discriminator 1 view .LVU112
+ 505 00ca 0128     		cmp	r0, #1
+ 506 00cc E7D1     		bne	.L22
+ 117:Core/Src/ad9518_stm.c ****         }
+ 507              		.loc 1 117 17 is_stmt 1 view .LVU113
+ 117:Core/Src/ad9518_stm.c ****         }
+ 508              		.loc 1 117 25 is_stmt 0 view .LVU114
+ 509 00ce 0123     		movs	r3, #1
+ 510 00d0 AB40     		lsls	r3, r3, r5
+ 117:Core/Src/ad9518_stm.c ****         }
+ 511              		.loc 1 117 19 view .LVU115
+ 512 00d2 3B43     		orrs	r3, r3, r7
+ 513 00d4 DFB2     		uxtb	r7, r3
+ 514              	.LVL46:
+ 117:Core/Src/ad9518_stm.c ****         }
+ 515              		.loc 1 117 19 view .LVU116
+ 516 00d6 E2E7     		b	.L22
+ 517              	.LVL47:
+ 518              	.L29:
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s 			page 14
+
+
+ 117:Core/Src/ad9518_stm.c ****         }
+ 519              		.loc 1 117 19 view .LVU117
+ 520              	.LBE23:
+ 119:Core/Src/ad9518_stm.c ****     }
+ 521              		.loc 1 119 9 is_stmt 1 view .LVU118
+ 119:Core/Src/ad9518_stm.c ****     }
+ 522              		.loc 1 119 17 is_stmt 0 view .LVU119
+ 523 00d8 09F80670 		strb	r7, [r9, r6]
+ 524              	.LBE22:
+ 107:Core/Src/ad9518_stm.c ****     {
+ 525              		.loc 1 107 44 is_stmt 1 discriminator 2 view .LVU120
+ 526 00dc 0136     		adds	r6, r6, #1
+ 527              	.LVL48:
+ 107:Core/Src/ad9518_stm.c ****     {
+ 528              		.loc 1 107 44 is_stmt 0 discriminator 2 view .LVU121
+ 529 00de B6B2     		uxth	r6, r6
+ 530              	.LVL49:
+ 531              	.L21:
+ 107:Core/Src/ad9518_stm.c ****     {
+ 532              		.loc 1 107 32 is_stmt 1 discriminator 1 view .LVU122
+ 533 00e0 4645     		cmp	r6, r8
+ 534 00e2 02D2     		bcs	.L30
+ 535              	.LBB25:
+ 536              	.LBB24:
+ 110:Core/Src/ad9518_stm.c ****         {
+ 537              		.loc 1 110 18 is_stmt 0 view .LVU123
+ 538 00e4 0725     		movs	r5, #7
+ 539              	.LBE24:
+ 109:Core/Src/ad9518_stm.c ****         for (int bit = 7; bit >= 0; bit--)
+ 540              		.loc 1 109 17 view .LVU124
+ 541 00e6 0027     		movs	r7, #0
+ 542 00e8 DAE7     		b	.L24
+ 543              	.L30:
+ 544              	.LBE25:
+ 545              	.LBE21:
+ 122:Core/Src/ad9518_stm.c ****     pin_af(SCK_PORT, SCK_PIN);
+ 546              		.loc 1 122 5 is_stmt 1 view .LVU125
+ 547              	.LBB26:
+ 548              	.LBI26:
+  22:Core/Src/ad9518_stm.c **** static inline void bb(void)
+ 549              		.loc 1 22 20 view .LVU126
+ 550              	.LBB27:
+  22:Core/Src/ad9518_stm.c **** static inline void bb(void)
+ 551              		.loc 1 22 36 view .LVU127
+ 552 00ea 094C     		ldr	r4, .L31+4
+ 553 00ec 0122     		movs	r2, #1
+ 554 00ee 0821     		movs	r1, #8
+ 555 00f0 2046     		mov	r0, r4
+ 556 00f2 FFF7FEFF 		bl	HAL_GPIO_WritePin
+ 557              	.LVL50:
+ 558              	.LBE27:
+ 559              	.LBE26:
+ 123:Core/Src/ad9518_stm.c ****     pin_af(SDIO_PORT, SDIO_PIN);
+ 560              		.loc 1 123 5 view .LVU128
+ 561 00f6 2021     		movs	r1, #32
+ 562 00f8 2046     		mov	r0, r4
+ 563 00fa FFF7FEFF 		bl	pin_af
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s 			page 15
+
+
+ 564              	.LVL51:
+ 124:Core/Src/ad9518_stm.c ****     return 0;
+ 565              		.loc 1 124 5 view .LVU129
+ 566 00fe 8021     		movs	r1, #128
+ 567 0100 2046     		mov	r0, r4
+ 568 0102 FFF7FEFF 		bl	pin_af
+ 569              	.LVL52:
+ 125:Core/Src/ad9518_stm.c **** }
+ 570              		.loc 1 125 5 view .LVU130
+ 126:Core/Src/ad9518_stm.c **** 
+ 571              		.loc 1 126 1 is_stmt 0 view .LVU131
+ 572 0106 0020     		movs	r0, #0
+ 573 0108 BDE8F087 		pop	{r4, r5, r6, r7, r8, r9, r10, pc}
+ 574              	.LVL53:
+ 575              	.L32:
+ 126:Core/Src/ad9518_stm.c **** 
+ 576              		.loc 1 126 1 view .LVU132
+ 577              		.align	2
+ 578              	.L31:
+ 579 010c 00000000 		.word	hspi1
+ 580 0110 00080140 		.word	1073809408
+ 581              		.cfi_endproc
+ 582              	.LFE72:
+ 584              		.section	.text.stm32_spi_write,"ax",%progbits
+ 585              		.align	1
+ 586              		.syntax unified
+ 587              		.thumb
+ 588              		.thumb_func
+ 590              	stm32_spi_write:
+ 591              	.LVL54:
+ 592              	.LFB71:
+  59:Core/Src/ad9518_stm.c ****     pin_af(SCK_PORT, SCK_PIN);
+ 593              		.loc 1 59 1 is_stmt 1 view -0
+ 594              		.cfi_startproc
+ 595              		@ args = 0, pretend = 0, frame = 0
+ 596              		@ frame_needed = 0, uses_anonymous_args = 0
+  59:Core/Src/ad9518_stm.c ****     pin_af(SCK_PORT, SCK_PIN);
+ 597              		.loc 1 59 1 is_stmt 0 view .LVU134
+ 598 0000 F8B5     		push	{r3, r4, r5, r6, r7, lr}
+ 599              	.LCFI14:
+ 600              		.cfi_def_cfa_offset 24
+ 601              		.cfi_offset 3, -24
+ 602              		.cfi_offset 4, -20
+ 603              		.cfi_offset 5, -16
+ 604              		.cfi_offset 6, -12
+ 605              		.cfi_offset 7, -8
+ 606              		.cfi_offset 14, -4
+ 607 0002 0546     		mov	r5, r0
+ 608 0004 0E46     		mov	r6, r1
+  60:Core/Src/ad9518_stm.c ****     pin_af(SDIO_PORT, SDIO_PIN);
+ 609              		.loc 1 60 5 is_stmt 1 view .LVU135
+ 610 0006 1E4F     		ldr	r7, .L38
+ 611 0008 2021     		movs	r1, #32
+ 612              	.LVL55:
+  60:Core/Src/ad9518_stm.c ****     pin_af(SDIO_PORT, SDIO_PIN);
+ 613              		.loc 1 60 5 is_stmt 0 view .LVU136
+ 614 000a 3846     		mov	r0, r7
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s 			page 16
+
+
+ 615              	.LVL56:
+  60:Core/Src/ad9518_stm.c ****     pin_af(SDIO_PORT, SDIO_PIN);
+ 616              		.loc 1 60 5 view .LVU137
+ 617 000c FFF7FEFF 		bl	pin_af
+ 618              	.LVL57:
+  61:Core/Src/ad9518_stm.c ****     hspi1.Instance->CR1 &= ~SPI_CR1_SPE_BIT;
+ 619              		.loc 1 61 5 is_stmt 1 view .LVU138
+ 620 0010 8021     		movs	r1, #128
+ 621 0012 3846     		mov	r0, r7
+ 622 0014 FFF7FEFF 		bl	pin_af
+ 623              	.LVL58:
+  62:Core/Src/ad9518_stm.c ****     hspi1.Instance->CR1 |= SPI_CR1_BIDIOE_BIT; /* drive output */
+ 624              		.loc 1 62 5 view .LVU139
+  62:Core/Src/ad9518_stm.c ****     hspi1.Instance->CR1 |= SPI_CR1_BIDIOE_BIT; /* drive output */
+ 625              		.loc 1 62 10 is_stmt 0 view .LVU140
+ 626 0018 1A4C     		ldr	r4, .L38+4
+ 627 001a 2268     		ldr	r2, [r4]
+  62:Core/Src/ad9518_stm.c ****     hspi1.Instance->CR1 |= SPI_CR1_BIDIOE_BIT; /* drive output */
+ 628              		.loc 1 62 19 view .LVU141
+ 629 001c 1368     		ldr	r3, [r2]
+  62:Core/Src/ad9518_stm.c ****     hspi1.Instance->CR1 |= SPI_CR1_BIDIOE_BIT; /* drive output */
+ 630              		.loc 1 62 25 view .LVU142
+ 631 001e 23F04003 		bic	r3, r3, #64
+ 632 0022 1360     		str	r3, [r2]
+  63:Core/Src/ad9518_stm.c ****     hspi1.Instance->CR1 |= SPI_CR1_SPE_BIT;
+ 633              		.loc 1 63 5 is_stmt 1 view .LVU143
+  63:Core/Src/ad9518_stm.c ****     hspi1.Instance->CR1 |= SPI_CR1_SPE_BIT;
+ 634              		.loc 1 63 10 is_stmt 0 view .LVU144
+ 635 0024 2268     		ldr	r2, [r4]
+  63:Core/Src/ad9518_stm.c ****     hspi1.Instance->CR1 |= SPI_CR1_SPE_BIT;
+ 636              		.loc 1 63 19 view .LVU145
+ 637 0026 1368     		ldr	r3, [r2]
+  63:Core/Src/ad9518_stm.c ****     hspi1.Instance->CR1 |= SPI_CR1_SPE_BIT;
+ 638              		.loc 1 63 25 view .LVU146
+ 639 0028 43F48043 		orr	r3, r3, #16384
+ 640 002c 1360     		str	r3, [r2]
   64:Core/Src/ad9518_stm.c **** 
-  65:Core/Src/ad9518_stm.c ****     return (s == HAL_OK) ? 0 : -1;
-  66:Core/Src/ad9518_stm.c **** }
-  67:Core/Src/ad9518_stm.c **** 
-  68:Core/Src/ad9518_stm.c **** static void stm32_delay_ms(uint32_t ms) { HAL_Delay(ms); }
-  99              		.loc 1 68 41 is_stmt 1 view -0
- 100              		.cfi_startproc
- 101              		@ args = 0, pretend = 0, frame = 0
- 102              		@ frame_needed = 0, uses_anonymous_args = 0
- 103              		.loc 1 68 41 is_stmt 0 view .LVU15
- 104 0000 08B5     		push	{r3, lr}
- 105              	.LCFI0:
- 106              		.cfi_def_cfa_offset 8
- 107              		.cfi_offset 3, -8
- 108              		.cfi_offset 14, -4
-ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s 			page 4
+ 641              		.loc 1 64 5 is_stmt 1 view .LVU147
+  64:Core/Src/ad9518_stm.c **** 
+ 642              		.loc 1 64 10 is_stmt 0 view .LVU148
+ 643 002e 2268     		ldr	r2, [r4]
+  64:Core/Src/ad9518_stm.c **** 
+ 644              		.loc 1 64 19 view .LVU149
+ 645 0030 1368     		ldr	r3, [r2]
+  64:Core/Src/ad9518_stm.c **** 
+ 646              		.loc 1 64 25 view .LVU150
+ 647 0032 43F04003 		orr	r3, r3, #64
+ 648 0036 1360     		str	r3, [r2]
+  66:Core/Src/ad9518_stm.c ****     HAL_StatusTypeDef s = HAL_SPI_Transmit(&hspi1, (uint8_t *)buf, len, HAL_MAX_DELAY);
+ 649              		.loc 1 66 5 is_stmt 1 view .LVU151
+ 650              	.LBB28:
+ 651              	.LBI28:
+  21:Core/Src/ad9518_stm.c **** static inline void cs_high(void) { HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_SET); }
+ 652              		.loc 1 21 20 view .LVU152
+ 653              	.LBB29:
+  21:Core/Src/ad9518_stm.c **** static inline void cs_high(void) { HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_SET); }
+ 654              		.loc 1 21 35 view .LVU153
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s 			page 17
 
 
- 109              		.loc 1 68 43 is_stmt 1 view .LVU16
- 110 0002 FFF7FEFF 		bl	HAL_Delay
- 111              	.LVL1:
- 112              		.loc 1 68 58 is_stmt 0 view .LVU17
- 113 0006 08BD     		pop	{r3, pc}
- 114              		.cfi_endproc
- 115              	.LFE71:
- 117              		.section	.text.stm32_spi_read,"ax",%progbits
- 118              		.align	1
- 119              		.syntax unified
- 120              		.thumb
- 121              		.thumb_func
- 123              	stm32_spi_read:
- 124              	.LVL2:
- 125              	.LFB70:
-  39:Core/Src/ad9518_stm.c ****     HAL_StatusTypeDef s;
- 126              		.loc 1 39 1 is_stmt 1 view -0
- 127              		.cfi_startproc
- 128              		@ args = 0, pretend = 0, frame = 0
- 129              		@ frame_needed = 0, uses_anonymous_args = 0
-  39:Core/Src/ad9518_stm.c ****     HAL_StatusTypeDef s;
- 130              		.loc 1 39 1 is_stmt 0 view .LVU19
- 131 0000 F8B5     		push	{r3, r4, r5, r6, r7, lr}
- 132              	.LCFI1:
- 133              		.cfi_def_cfa_offset 24
- 134              		.cfi_offset 3, -24
- 135              		.cfi_offset 4, -20
- 136              		.cfi_offset 5, -16
- 137              		.cfi_offset 6, -12
- 138              		.cfi_offset 7, -8
- 139              		.cfi_offset 14, -4
- 140 0002 0446     		mov	r4, r0
- 141 0004 0D46     		mov	r5, r1
- 142 0006 1646     		mov	r6, r2
- 143 0008 1F46     		mov	r7, r3
-  40:Core/Src/ad9518_stm.c ****     cs_low();
- 144              		.loc 1 40 5 is_stmt 1 view .LVU20
-  41:Core/Src/ad9518_stm.c **** 
- 145              		.loc 1 41 5 view .LVU21
- 146              	.LBB12:
- 147              	.LBI12:
-   9:Core/Src/ad9518_stm.c **** static inline void cs_high(void) { HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_SET); }
- 148              		.loc 1 9 20 view .LVU22
- 149              	.LBB13:
-   9:Core/Src/ad9518_stm.c **** static inline void cs_high(void) { HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_SET); }
- 150              		.loc 1 9 35 view .LVU23
- 151 000a 0022     		movs	r2, #0
- 152              	.LVL3:
-   9:Core/Src/ad9518_stm.c **** static inline void cs_high(void) { HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_SET); }
- 153              		.loc 1 9 35 is_stmt 0 view .LVU24
- 154 000c 0821     		movs	r1, #8
- 155              	.LVL4:
-   9:Core/Src/ad9518_stm.c **** static inline void cs_high(void) { HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_SET); }
- 156              		.loc 1 9 35 view .LVU25
- 157 000e 1948     		ldr	r0, .L15
- 158              	.LVL5:
-   9:Core/Src/ad9518_stm.c **** static inline void cs_high(void) { HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_SET); }
-ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s 			page 5
+ 655 0038 0022     		movs	r2, #0
+ 656 003a 0821     		movs	r1, #8
+ 657 003c 3846     		mov	r0, r7
+ 658 003e FFF7FEFF 		bl	HAL_GPIO_WritePin
+ 659              	.LVL59:
+ 660              	.LBE29:
+ 661              	.LBE28:
+  67:Core/Src/ad9518_stm.c ****     while (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_BSY))
+ 662              		.loc 1 67 5 view .LVU154
+  67:Core/Src/ad9518_stm.c ****     while (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_BSY))
+ 663              		.loc 1 67 27 is_stmt 0 view .LVU155
+ 664 0042 4FF0FF33 		mov	r3, #-1
+ 665 0046 3246     		mov	r2, r6
+ 666 0048 2946     		mov	r1, r5
+ 667 004a 2046     		mov	r0, r4
+ 668 004c FFF7FEFF 		bl	HAL_SPI_Transmit
+ 669              	.LVL60:
+ 670 0050 0446     		mov	r4, r0
+ 671              	.LVL61:
+  68:Core/Src/ad9518_stm.c ****     {
+ 672              		.loc 1 68 5 is_stmt 1 view .LVU156
+ 673              	.L34:
+  70:Core/Src/ad9518_stm.c ****     cs_high();
+ 674              		.loc 1 70 5 view .LVU157
+  68:Core/Src/ad9518_stm.c ****     {
+ 675              		.loc 1 68 12 discriminator 1 view .LVU158
+ 676 0052 0C4B     		ldr	r3, .L38+4
+ 677 0054 1B68     		ldr	r3, [r3]
+ 678 0056 9B68     		ldr	r3, [r3, #8]
+ 679 0058 13F0800F 		tst	r3, #128
+ 680 005c F9D1     		bne	.L34
+  71:Core/Src/ad9518_stm.c **** 
+ 681              		.loc 1 71 5 view .LVU159
+ 682              	.LBB30:
+ 683              	.LBI30:
+  22:Core/Src/ad9518_stm.c **** static inline void bb(void)
+ 684              		.loc 1 22 20 view .LVU160
+ 685              	.LBB31:
+  22:Core/Src/ad9518_stm.c **** static inline void bb(void)
+ 686              		.loc 1 22 36 view .LVU161
+ 687 005e 0122     		movs	r2, #1
+ 688 0060 0821     		movs	r1, #8
+ 689 0062 0748     		ldr	r0, .L38
+ 690 0064 FFF7FEFF 		bl	HAL_GPIO_WritePin
+ 691              	.LVL62:
+ 692              	.LBE31:
+ 693              	.LBE30:
+  73:Core/Src/ad9518_stm.c ****     return (s == HAL_OK) ? 0 : -1;
+ 694              		.loc 1 73 5 view .LVU162
+  73:Core/Src/ad9518_stm.c ****     return (s == HAL_OK) ? 0 : -1;
+ 695              		.loc 1 73 10 is_stmt 0 view .LVU163
+ 696 0068 064B     		ldr	r3, .L38+4
+ 697 006a 1A68     		ldr	r2, [r3]
+  73:Core/Src/ad9518_stm.c ****     return (s == HAL_OK) ? 0 : -1;
+ 698              		.loc 1 73 19 view .LVU164
+ 699 006c 1368     		ldr	r3, [r2]
+  73:Core/Src/ad9518_stm.c ****     return (s == HAL_OK) ? 0 : -1;
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s 			page 18
 
 
- 159              		.loc 1 9 35 view .LVU26
- 160 0010 FFF7FEFF 		bl	HAL_GPIO_WritePin
- 161              	.LVL6:
-   9:Core/Src/ad9518_stm.c **** static inline void cs_high(void) { HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_SET); }
- 162              		.loc 1 9 35 view .LVU27
- 163              	.LBE13:
- 164              	.LBE12:
-  44:Core/Src/ad9518_stm.c ****     s = HAL_SPI_Transmit(&hspi1, (uint8_t *)tx, txlen, HAL_MAX_DELAY);
- 165              		.loc 1 44 5 is_stmt 1 view .LVU28
- 166 0014 FFF7FEFF 		bl	spi_dir_tx
- 167              	.LVL7:
-  45:Core/Src/ad9518_stm.c ****     if (s != HAL_OK)
- 168              		.loc 1 45 5 view .LVU29
-  45:Core/Src/ad9518_stm.c ****     if (s != HAL_OK)
- 169              		.loc 1 45 9 is_stmt 0 view .LVU30
- 170 0018 4FF0FF33 		mov	r3, #-1
- 171 001c 2A46     		mov	r2, r5
- 172 001e 2146     		mov	r1, r4
- 173 0020 1548     		ldr	r0, .L15+4
- 174 0022 FFF7FEFF 		bl	HAL_SPI_Transmit
- 175              	.LVL8:
-  46:Core/Src/ad9518_stm.c ****     {
- 176              		.loc 1 46 5 is_stmt 1 view .LVU31
-  46:Core/Src/ad9518_stm.c ****     {
- 177              		.loc 1 46 8 is_stmt 0 view .LVU32
- 178 0026 C8B9     		cbnz	r0, .L14
-  56:Core/Src/ad9518_stm.c ****     s = HAL_SPI_Receive(&hspi1, rx, rxlen, HAL_MAX_DELAY);
- 179              		.loc 1 56 5 is_stmt 1 view .LVU33
- 180 0028 FFF7FEFF 		bl	spi_dir_rx
- 181              	.LVL9:
-  57:Core/Src/ad9518_stm.c ****     __HAL_SPI_DISABLE(&hspi1); /* stop the continuous clock immediately */
- 182              		.loc 1 57 5 view .LVU34
-  57:Core/Src/ad9518_stm.c ****     __HAL_SPI_DISABLE(&hspi1); /* stop the continuous clock immediately */
- 183              		.loc 1 57 9 is_stmt 0 view .LVU35
- 184 002c 124D     		ldr	r5, .L15+4
- 185              	.LVL10:
-  57:Core/Src/ad9518_stm.c ****     __HAL_SPI_DISABLE(&hspi1); /* stop the continuous clock immediately */
- 186              		.loc 1 57 9 view .LVU36
- 187 002e 4FF0FF33 		mov	r3, #-1
- 188 0032 3A46     		mov	r2, r7
- 189 0034 3146     		mov	r1, r6
- 190 0036 2846     		mov	r0, r5
- 191 0038 FFF7FEFF 		bl	HAL_SPI_Receive
- 192              	.LVL11:
- 193 003c 0446     		mov	r4, r0
- 194              	.LVL12:
-  58:Core/Src/ad9518_stm.c **** 
- 195              		.loc 1 58 5 is_stmt 1 view .LVU37
- 196 003e 2A68     		ldr	r2, [r5]
- 197 0040 1368     		ldr	r3, [r2]
- 198 0042 23F04003 		bic	r3, r3, #64
- 199 0046 1360     		str	r3, [r2]
-  60:Core/Src/ad9518_stm.c **** 
- 200              		.loc 1 60 5 view .LVU38
- 201              	.LBB14:
- 202              	.LBI14:
-  10:Core/Src/ad9518_stm.c **** 
-ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s 			page 6
-
-
- 203              		.loc 1 10 20 view .LVU39
- 204              	.LBB15:
-  10:Core/Src/ad9518_stm.c **** 
- 205              		.loc 1 10 36 view .LVU40
- 206 0048 0122     		movs	r2, #1
- 207 004a 0821     		movs	r1, #8
- 208 004c 0948     		ldr	r0, .L15
- 209 004e FFF7FEFF 		bl	HAL_GPIO_WritePin
- 210              	.LVL13:
- 211              	.LBE15:
- 212              	.LBE14:
-  63:Core/Src/ad9518_stm.c **** 
- 213              		.loc 1 63 5 view .LVU41
- 214 0052 FFF7FEFF 		bl	spi_dir_tx
- 215              	.LVL14:
-  65:Core/Src/ad9518_stm.c **** }
- 216              		.loc 1 65 5 view .LVU42
-  65:Core/Src/ad9518_stm.c **** }
- 217              		.loc 1 65 30 is_stmt 0 view .LVU43
- 218 0056 4CB9     		cbnz	r4, .L12
-  65:Core/Src/ad9518_stm.c **** }
- 219              		.loc 1 65 30 discriminator 1 view .LVU44
- 220 0058 0020     		movs	r0, #0
- 221              	.LVL15:
- 222              	.L9:
-  66:Core/Src/ad9518_stm.c **** 
- 223              		.loc 1 66 1 view .LVU45
- 224 005a F8BD     		pop	{r3, r4, r5, r6, r7, pc}
- 225              	.LVL16:
- 226              	.L14:
-  48:Core/Src/ad9518_stm.c ****         return -1;
- 227              		.loc 1 48 9 is_stmt 1 view .LVU46
- 228              	.LBB16:
- 229              	.LBI16:
-  10:Core/Src/ad9518_stm.c **** 
- 230              		.loc 1 10 20 view .LVU47
- 231              	.LBB17:
-  10:Core/Src/ad9518_stm.c **** 
- 232              		.loc 1 10 36 view .LVU48
- 233 005c 0122     		movs	r2, #1
- 234 005e 0821     		movs	r1, #8
- 235 0060 0448     		ldr	r0, .L15
- 236              	.LVL17:
-  10:Core/Src/ad9518_stm.c **** 
- 237              		.loc 1 10 36 is_stmt 0 view .LVU49
- 238 0062 FFF7FEFF 		bl	HAL_GPIO_WritePin
- 239              	.LVL18:
- 240              	.LBE17:
- 241              	.LBE16:
-  49:Core/Src/ad9518_stm.c ****     }
- 242              		.loc 1 49 9 is_stmt 1 view .LVU50
-  49:Core/Src/ad9518_stm.c ****     }
- 243              		.loc 1 49 16 is_stmt 0 view .LVU51
- 244 0066 4FF0FF30 		mov	r0, #-1
- 245 006a F6E7     		b	.L9
- 246              	.LVL19:
- 247              	.L12:
-ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s 			page 7
-
-
-  65:Core/Src/ad9518_stm.c **** }
- 248              		.loc 1 65 30 discriminator 2 view .LVU52
- 249 006c 4FF0FF30 		mov	r0, #-1
- 250 0070 F3E7     		b	.L9
- 251              	.L16:
- 252 0072 00BF     		.align	2
- 253              	.L15:
- 254 0074 00080140 		.word	1073809408
- 255 0078 00000000 		.word	hspi1
- 256              		.cfi_endproc
- 257              	.LFE70:
- 259              		.section	.text.stm32_spi_write,"ax",%progbits
- 260              		.align	1
- 261              		.syntax unified
- 262              		.thumb
- 263              		.thumb_func
- 265              	stm32_spi_write:
- 266              	.LVL20:
- 267              	.LFB69:
-  27:Core/Src/ad9518_stm.c ****     HAL_StatusTypeDef s;
- 268              		.loc 1 27 1 is_stmt 1 view -0
- 269              		.cfi_startproc
- 270              		@ args = 0, pretend = 0, frame = 0
- 271              		@ frame_needed = 0, uses_anonymous_args = 0
-  27:Core/Src/ad9518_stm.c ****     HAL_StatusTypeDef s;
- 272              		.loc 1 27 1 is_stmt 0 view .LVU54
- 273 0000 70B5     		push	{r4, r5, r6, lr}
- 274              	.LCFI2:
- 275              		.cfi_def_cfa_offset 16
- 276              		.cfi_offset 4, -16
- 277              		.cfi_offset 5, -12
- 278              		.cfi_offset 6, -8
- 279              		.cfi_offset 14, -4
- 280 0002 0446     		mov	r4, r0
- 281 0004 0D46     		mov	r5, r1
-  28:Core/Src/ad9518_stm.c ****     cs_low();
- 282              		.loc 1 28 5 is_stmt 1 view .LVU55
-  29:Core/Src/ad9518_stm.c ****     spi_dir_tx();
- 283              		.loc 1 29 5 view .LVU56
- 284              	.LBB18:
- 285              	.LBI18:
-   9:Core/Src/ad9518_stm.c **** static inline void cs_high(void) { HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_SET); }
- 286              		.loc 1 9 20 view .LVU57
- 287              	.LBB19:
-   9:Core/Src/ad9518_stm.c **** static inline void cs_high(void) { HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_SET); }
- 288              		.loc 1 9 35 view .LVU58
- 289 0006 0D4E     		ldr	r6, .L21
- 290 0008 0022     		movs	r2, #0
- 291 000a 0821     		movs	r1, #8
- 292              	.LVL21:
-   9:Core/Src/ad9518_stm.c **** static inline void cs_high(void) { HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_SET); }
- 293              		.loc 1 9 35 is_stmt 0 view .LVU59
- 294 000c 3046     		mov	r0, r6
- 295              	.LVL22:
-   9:Core/Src/ad9518_stm.c **** static inline void cs_high(void) { HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_SET); }
- 296              		.loc 1 9 35 view .LVU60
- 297 000e FFF7FEFF 		bl	HAL_GPIO_WritePin
-ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s 			page 8
-
-
- 298              	.LVL23:
- 299              	.LBE19:
- 300              	.LBE18:
-  30:Core/Src/ad9518_stm.c ****     s = HAL_SPI_Transmit(&hspi1, (uint8_t *)buf, len, HAL_MAX_DELAY);
- 301              		.loc 1 30 5 is_stmt 1 view .LVU61
- 302 0012 FFF7FEFF 		bl	spi_dir_tx
- 303              	.LVL24:
-  31:Core/Src/ad9518_stm.c ****     cs_high();
- 304              		.loc 1 31 5 view .LVU62
-  31:Core/Src/ad9518_stm.c ****     cs_high();
- 305              		.loc 1 31 9 is_stmt 0 view .LVU63
- 306 0016 4FF0FF33 		mov	r3, #-1
- 307 001a 2A46     		mov	r2, r5
- 308 001c 2146     		mov	r1, r4
- 309 001e 0848     		ldr	r0, .L21+4
- 310 0020 FFF7FEFF 		bl	HAL_SPI_Transmit
- 311              	.LVL25:
- 312 0024 0446     		mov	r4, r0
- 313              	.LVL26:
-  32:Core/Src/ad9518_stm.c ****     return (s == HAL_OK) ? 0 : -1;
- 314              		.loc 1 32 5 is_stmt 1 view .LVU64
- 315              	.LBB20:
- 316              	.LBI20:
-  10:Core/Src/ad9518_stm.c **** 
- 317              		.loc 1 10 20 view .LVU65
- 318              	.LBB21:
-  10:Core/Src/ad9518_stm.c **** 
- 319              		.loc 1 10 36 view .LVU66
- 320 0026 0122     		movs	r2, #1
- 321 0028 0821     		movs	r1, #8
- 322 002a 3046     		mov	r0, r6
- 323 002c FFF7FEFF 		bl	HAL_GPIO_WritePin
- 324              	.LVL27:
- 325              	.LBE21:
- 326              	.LBE20:
-  33:Core/Src/ad9518_stm.c **** }
- 327              		.loc 1 33 5 view .LVU67
-  33:Core/Src/ad9518_stm.c **** }
- 328              		.loc 1 33 30 is_stmt 0 view .LVU68
- 329 0030 0CB9     		cbnz	r4, .L19
-  33:Core/Src/ad9518_stm.c **** }
- 330              		.loc 1 33 30 discriminator 1 view .LVU69
- 331 0032 0020     		movs	r0, #0
- 332              	.L17:
-  34:Core/Src/ad9518_stm.c **** 
- 333              		.loc 1 34 1 view .LVU70
- 334 0034 70BD     		pop	{r4, r5, r6, pc}
- 335              	.LVL28:
- 336              	.L19:
-  33:Core/Src/ad9518_stm.c **** }
- 337              		.loc 1 33 30 discriminator 2 view .LVU71
- 338 0036 4FF0FF30 		mov	r0, #-1
-  33:Core/Src/ad9518_stm.c **** }
- 339              		.loc 1 33 30 view .LVU72
- 340 003a FBE7     		b	.L17
- 341              	.L22:
- 342              		.align	2
-ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s 			page 9
-
-
- 343              	.L21:
- 344 003c 00080140 		.word	1073809408
- 345 0040 00000000 		.word	hspi1
- 346              		.cfi_endproc
- 347              	.LFE69:
- 349              		.global	ad9518
- 350              		.section	.data.ad9518,"aw"
- 351              		.align	2
- 354              	ad9518:
- 355 0000 00000000 		.word	stm32_spi_write
- 356 0004 00000000 		.word	stm32_spi_read
- 357 0008 00000000 		.word	stm32_delay_ms
- 358              		.text
- 359              	.Letext0:
- 360              		.file 2 "/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/arm-none-eabi/include/machine/_defa
- 361              		.file 3 "/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/arm-none-eabi/include/sys/_stdint.h
- 362              		.file 4 "Core/Inc/ad9518.h"
- 363              		.file 5 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xb.h"
- 364              		.file 6 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h"
- 365              		.file 7 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_gpio.h"
- 366              		.file 8 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_dma.h"
- 367              		.file 9 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_spi.h"
- 368              		.file 10 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h"
-ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s 			page 10
+ 700              		.loc 1 73 25 view .LVU165
+ 701 006e 23F04003 		bic	r3, r3, #64
+ 702 0072 1360     		str	r3, [r2]
+  74:Core/Src/ad9518_stm.c **** }
+ 703              		.loc 1 74 5 is_stmt 1 view .LVU166
+  74:Core/Src/ad9518_stm.c **** }
+ 704              		.loc 1 74 30 is_stmt 0 view .LVU167
+ 705 0074 0CB9     		cbnz	r4, .L36
+  74:Core/Src/ad9518_stm.c **** }
+ 706              		.loc 1 74 30 discriminator 1 view .LVU168
+ 707 0076 0020     		movs	r0, #0
+ 708              	.L33:
+  75:Core/Src/ad9518_stm.c **** 
+ 709              		.loc 1 75 1 view .LVU169
+ 710 0078 F8BD     		pop	{r3, r4, r5, r6, r7, pc}
+ 711              	.LVL63:
+ 712              	.L36:
+  74:Core/Src/ad9518_stm.c **** }
+ 713              		.loc 1 74 30 discriminator 2 view .LVU170
+ 714 007a 4FF0FF30 		mov	r0, #-1
+  74:Core/Src/ad9518_stm.c **** }
+ 715              		.loc 1 74 30 view .LVU171
+ 716 007e FBE7     		b	.L33
+ 717              	.L39:
+ 718              		.align	2
+ 719              	.L38:
+ 720 0080 00080140 		.word	1073809408
+ 721 0084 00000000 		.word	hspi1
+ 722              		.cfi_endproc
+ 723              	.LFE71:
+ 725              		.global	ad9518
+ 726              		.section	.data.ad9518,"aw"
+ 727              		.align	2
+ 730              	ad9518:
+ 731 0000 00000000 		.word	stm32_spi_write
+ 732 0004 00000000 		.word	stm32_spi_read
+ 733 0008 00000000 		.word	stm32_delay_ms
+ 734 000c 00000000 		.word	stm32_dbg
+ 735              		.text
+ 736              	.Letext0:
+ 737              		.file 2 "/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/arm-none-eabi/include/machine/_defa
+ 738              		.file 3 "/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/arm-none-eabi/include/sys/_stdint.h
+ 739              		.file 4 "Core/Inc/ad9518.h"
+ 740              		.file 5 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xb.h"
+ 741              		.file 6 "/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/lib/gcc/arm-none-eabi/14.3.1/includ
+ 742              		.file 7 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h"
+ 743              		.file 8 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_gpio.h"
+ 744              		.file 9 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_dma.h"
+ 745              		.file 10 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_spi.h"
+ 746              		.file 11 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h"
+ 747              		.file 12 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h"
+ 748              		.file 13 "/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/arm-none-eabi/include/string.h"
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s 			page 19
 
 
 DEFINED SYMBOLS
                             *ABS*:00000000 ad9518_stm.c
-/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s:19     .text.spi_dir_tx:00000000 $t
-/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s:24     .text.spi_dir_tx:00000000 spi_dir_tx
-/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s:50     .text.spi_dir_tx:00000018 $d
-/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s:55     .text.spi_dir_rx:00000000 $t
-/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s:60     .text.spi_dir_rx:00000000 spi_dir_rx
-/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s:86     .text.spi_dir_rx:00000018 $d
-/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s:91     .text.stm32_delay_ms:00000000 $t
-/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s:96     .text.stm32_delay_ms:00000000 stm32_delay_ms
-/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s:118    .text.stm32_spi_read:00000000 $t
-/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s:123    .text.stm32_spi_read:00000000 stm32_spi_read
-/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s:254    .text.stm32_spi_read:00000074 $d
-/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s:260    .text.stm32_spi_write:00000000 $t
-/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s:265    .text.stm32_spi_write:00000000 stm32_spi_write
-/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s:344    .text.stm32_spi_write:0000003c $d
-/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s:354    .data.ad9518:00000000 ad9518
-/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccogQccM.s:351    .data.ad9518:00000000 $d
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s:19     .text.bb:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s:24     .text.bb:00000000 bb
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s:70     .text.stm32_dbg:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s:75     .text.stm32_dbg:00000000 stm32_dbg
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s:107    .text.stm32_dbg:00000018 $d
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s:112    .text.stm32_delay_ms:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s:117    .text.stm32_delay_ms:00000000 stm32_delay_ms
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s:139    .text.pin_out:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s:144    .text.pin_out:00000000 pin_out
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s:194    .text.pin_in:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s:199    .text.pin_in:00000000 pin_in
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s:249    .text.pin_af:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s:254    .text.pin_af:00000000 pin_af
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s:304    .text.stm32_spi_read:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s:309    .text.stm32_spi_read:00000000 stm32_spi_read
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s:579    .text.stm32_spi_read:0000010c $d
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s:585    .text.stm32_spi_write:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s:590    .text.stm32_spi_write:00000000 stm32_spi_write
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s:720    .text.stm32_spi_write:00000080 $d
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s:730    .data.ad9518:00000000 ad9518
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccLHx8Cm.s:727    .data.ad9518:00000000 $d
 
 UNDEFINED SYMBOLS
-hspi1
+strlen
+HAL_UART_Transmit
+huart1
 HAL_Delay
+HAL_GPIO_Init
 HAL_GPIO_WritePin
+HAL_GPIO_ReadPin
+hspi1
 HAL_SPI_Transmit
-HAL_SPI_Receive

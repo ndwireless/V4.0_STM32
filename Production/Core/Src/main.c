@@ -167,7 +167,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -232,13 +232,13 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, CS_CLK_Pin|CS_ADC_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, CS_CLK_Pin|CS_ADC_Pin|RST_CLK_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(USR1_GPIO_Port, USR1_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : CS_CLK_Pin CS_ADC_Pin */
-  GPIO_InitStruct.Pin = CS_CLK_Pin|CS_ADC_Pin;
+  /*Configure GPIO pins : CS_CLK_Pin CS_ADC_Pin RST_CLK_Pin */
+  GPIO_InitStruct.Pin = CS_CLK_Pin|CS_ADC_Pin|RST_CLK_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

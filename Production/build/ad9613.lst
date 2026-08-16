@@ -1,0 +1,1727 @@
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 1
+
+
+   1              		.cpu cortex-m3
+   2              		.arch armv7-m
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.file	"ad9613.c"
+  14              		.text
+  15              	.Ltext0:
+  16              		.cfi_sections	.debug_frame
+  17              		.file 1 "Core/Src/ad9613.c"
+  18              		.section	.text.D,"ax",%progbits
+  19              		.align	1
+  20              		.syntax unified
+  21              		.thumb
+  22              		.thumb_func
+  24              	D:
+  25              	.LVL0:
+  26              	.LFB3:
+   1:Core/Src/ad9613.c **** #include "ad9613.h"
+   2:Core/Src/ad9613.c **** #include <stdio.h>
+   3:Core/Src/ad9613.c **** #include <stdarg.h>
+   4:Core/Src/ad9613.c **** 
+   5:Core/Src/ad9613.c **** /* ------------------------------------------------------------------ */
+   6:Core/Src/ad9613.c **** /* debug                                                               */
+   7:Core/Src/ad9613.c **** /* ------------------------------------------------------------------ */
+   8:Core/Src/ad9613.c **** 
+   9:Core/Src/ad9613.c **** static void D(ad9613_dev_t *d, const char *s)
+  10:Core/Src/ad9613.c **** {
+  27              		.loc 1 10 1 view -0
+  28              		.cfi_startproc
+  29              		@ args = 0, pretend = 0, frame = 0
+  30              		@ frame_needed = 0, uses_anonymous_args = 0
+  31              		.loc 1 10 1 is_stmt 0 view .LVU1
+  32 0000 08B5     		push	{r3, lr}
+  33              	.LCFI0:
+  34              		.cfi_def_cfa_offset 8
+  35              		.cfi_offset 3, -8
+  36              		.cfi_offset 14, -4
+  11:Core/Src/ad9613.c ****     if (d->dbg)
+  37              		.loc 1 11 5 is_stmt 1 view .LVU2
+  38              		.loc 1 11 10 is_stmt 0 view .LVU3
+  39 0002 C369     		ldr	r3, [r0, #28]
+  40              		.loc 1 11 8 view .LVU4
+  41 0004 0BB1     		cbz	r3, .L1
+  12:Core/Src/ad9613.c ****         d->dbg(s);
+  42              		.loc 1 12 9 is_stmt 1 view .LVU5
+  43 0006 0846     		mov	r0, r1
+  44              	.LVL1:
+  45              		.loc 1 12 9 is_stmt 0 view .LVU6
+  46 0008 9847     		blx	r3
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 2
+
+
+  47              	.LVL2:
+  48              	.L1:
+  13:Core/Src/ad9613.c **** }
+  49              		.loc 1 13 1 view .LVU7
+  50 000a 08BD     		pop	{r3, pc}
+  51              		.cfi_endproc
+  52              	.LFE3:
+  54              		.section	.text.shift_out,"ax",%progbits
+  55              		.align	1
+  56              		.syntax unified
+  57              		.thumb
+  58              		.thumb_func
+  60              	shift_out:
+  61              	.LVL3:
+  62              	.LFB5:
+  14:Core/Src/ad9613.c **** 
+  15:Core/Src/ad9613.c **** static void Df(ad9613_dev_t *d, const char *fmt, ...)
+  16:Core/Src/ad9613.c **** {
+  17:Core/Src/ad9613.c ****     if (!d->dbg)
+  18:Core/Src/ad9613.c ****         return;
+  19:Core/Src/ad9613.c ****     char b[144];
+  20:Core/Src/ad9613.c ****     va_list ap;
+  21:Core/Src/ad9613.c ****     va_start(ap, fmt);
+  22:Core/Src/ad9613.c ****     vsnprintf(b, sizeof(b), fmt, ap);
+  23:Core/Src/ad9613.c ****     va_end(ap);
+  24:Core/Src/ad9613.c ****     d->dbg(b);
+  25:Core/Src/ad9613.c **** }
+  26:Core/Src/ad9613.c **** 
+  27:Core/Src/ad9613.c **** /* ------------------------------------------------------------------ */
+  28:Core/Src/ad9613.c **** /* bit-banged serial port                                              */
+  29:Core/Src/ad9613.c **** /*                                                                     */
+  30:Core/Src/ad9613.c **** /* AN-877 format: a 16-bit instruction word, then data. Bit 15 is R/W,  */
+  31:Core/Src/ad9613.c **** /* bits 14:13 (W1:W0) give the byte count minus one, bits 12:0 are the  */
+  32:Core/Src/ad9613.c **** /* address. Single-byte transfers only here, so W1:W0 = 00.             */
+  33:Core/Src/ad9613.c **** /*                                                                     */
+  34:Core/Src/ad9613.c **** /* SCLK idles low. Write data is registered on the SCLK rising edge and */
+  35:Core/Src/ad9613.c **** /* read data on the falling edge, so read data is sampled while SCLK is */
+  36:Core/Src/ad9613.c **** /* low - before the clock pulse, which also keeps the final bit inside  */
+  37:Core/Src/ad9613.c **** /* the window where the part is still driving SDIO.                     */
+  38:Core/Src/ad9613.c **** /* ------------------------------------------------------------------ */
+  39:Core/Src/ad9613.c **** 
+  40:Core/Src/ad9613.c **** static void shift_out(ad9613_dev_t *d, uint8_t byte)
+  41:Core/Src/ad9613.c **** {
+  63              		.loc 1 41 1 is_stmt 1 view -0
+  64              		.cfi_startproc
+  65              		@ args = 0, pretend = 0, frame = 0
+  66              		@ frame_needed = 0, uses_anonymous_args = 0
+  67              		.loc 1 41 1 is_stmt 0 view .LVU9
+  68 0000 70B5     		push	{r4, r5, r6, lr}
+  69              	.LCFI1:
+  70              		.cfi_def_cfa_offset 16
+  71              		.cfi_offset 4, -16
+  72              		.cfi_offset 5, -12
+  73              		.cfi_offset 6, -8
+  74              		.cfi_offset 14, -4
+  75 0002 0446     		mov	r4, r0
+  76 0004 0E46     		mov	r6, r1
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 3
+
+
+  42:Core/Src/ad9613.c ****     for (int bit = 7; bit >= 0; bit--)
+  77              		.loc 1 42 5 is_stmt 1 view .LVU10
+  78              	.LBB2:
+  79              		.loc 1 42 10 view .LVU11
+  80              	.LVL4:
+  81              		.loc 1 42 14 is_stmt 0 view .LVU12
+  82 0006 0725     		movs	r5, #7
+  83              		.loc 1 42 5 view .LVU13
+  84 0008 10E0     		b	.L5
+  85              	.LVL5:
+  86              	.L6:
+  43:Core/Src/ad9613.c ****     {
+  44:Core/Src/ad9613.c ****         d->sdio((byte >> bit) & 1);
+  87              		.loc 1 44 9 is_stmt 1 view .LVU14
+  88              		.loc 1 44 10 is_stmt 0 view .LVU15
+  89 000a A368     		ldr	r3, [r4, #8]
+  90              		.loc 1 44 23 view .LVU16
+  91 000c 46FA05F0 		asr	r0, r6, r5
+  92              		.loc 1 44 9 view .LVU17
+  93 0010 00F00100 		and	r0, r0, #1
+  94 0014 9847     		blx	r3
+  95              	.LVL6:
+  45:Core/Src/ad9613.c ****         d->bit_delay();
+  96              		.loc 1 45 9 is_stmt 1 view .LVU18
+  97              		.loc 1 45 10 is_stmt 0 view .LVU19
+  98 0016 6369     		ldr	r3, [r4, #20]
+  99              		.loc 1 45 9 view .LVU20
+ 100 0018 9847     		blx	r3
+ 101              	.LVL7:
+  46:Core/Src/ad9613.c ****         d->sclk(1);
+ 102              		.loc 1 46 9 is_stmt 1 view .LVU21
+ 103              		.loc 1 46 10 is_stmt 0 view .LVU22
+ 104 001a 6368     		ldr	r3, [r4, #4]
+ 105              		.loc 1 46 9 view .LVU23
+ 106 001c 0120     		movs	r0, #1
+ 107 001e 9847     		blx	r3
+ 108              	.LVL8:
+  47:Core/Src/ad9613.c ****         d->bit_delay();
+ 109              		.loc 1 47 9 is_stmt 1 view .LVU24
+ 110              		.loc 1 47 10 is_stmt 0 view .LVU25
+ 111 0020 6369     		ldr	r3, [r4, #20]
+ 112              		.loc 1 47 9 view .LVU26
+ 113 0022 9847     		blx	r3
+ 114              	.LVL9:
+  48:Core/Src/ad9613.c ****         d->sclk(0);
+ 115              		.loc 1 48 9 is_stmt 1 view .LVU27
+ 116              		.loc 1 48 10 is_stmt 0 view .LVU28
+ 117 0024 6368     		ldr	r3, [r4, #4]
+ 118              		.loc 1 48 9 view .LVU29
+ 119 0026 0020     		movs	r0, #0
+ 120 0028 9847     		blx	r3
+ 121              	.LVL10:
+  42:Core/Src/ad9613.c ****     {
+ 122              		.loc 1 42 36 is_stmt 1 discriminator 3 view .LVU30
+ 123 002a 013D     		subs	r5, r5, #1
+ 124              	.LVL11:
+ 125              	.L5:
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 4
+
+
+  42:Core/Src/ad9613.c ****     {
+ 126              		.loc 1 42 27 discriminator 1 view .LVU31
+ 127 002c 002D     		cmp	r5, #0
+ 128 002e ECDA     		bge	.L6
+ 129              	.LBE2:
+  49:Core/Src/ad9613.c ****     }
+  50:Core/Src/ad9613.c **** }
+ 130              		.loc 1 50 1 is_stmt 0 view .LVU32
+ 131 0030 70BD     		pop	{r4, r5, r6, pc}
+ 132              		.loc 1 50 1 view .LVU33
+ 133              		.cfi_endproc
+ 134              	.LFE5:
+ 136              		.section	.text.shift_in,"ax",%progbits
+ 137              		.align	1
+ 138              		.syntax unified
+ 139              		.thumb
+ 140              		.thumb_func
+ 142              	shift_in:
+ 143              	.LVL12:
+ 144              	.LFB6:
+  51:Core/Src/ad9613.c **** 
+  52:Core/Src/ad9613.c **** static uint8_t shift_in(ad9613_dev_t *d)
+  53:Core/Src/ad9613.c **** {
+ 145              		.loc 1 53 1 is_stmt 1 view -0
+ 146              		.cfi_startproc
+ 147              		@ args = 0, pretend = 0, frame = 0
+ 148              		@ frame_needed = 0, uses_anonymous_args = 0
+ 149              		.loc 1 53 1 is_stmt 0 view .LVU35
+ 150 0000 70B5     		push	{r4, r5, r6, lr}
+ 151              	.LCFI2:
+ 152              		.cfi_def_cfa_offset 16
+ 153              		.cfi_offset 4, -16
+ 154              		.cfi_offset 5, -12
+ 155              		.cfi_offset 6, -8
+ 156              		.cfi_offset 14, -4
+ 157 0002 0446     		mov	r4, r0
+  54:Core/Src/ad9613.c ****     uint8_t v = 0;
+ 158              		.loc 1 54 5 is_stmt 1 view .LVU36
+ 159              	.LVL13:
+  55:Core/Src/ad9613.c ****     for (int bit = 7; bit >= 0; bit--)
+ 160              		.loc 1 55 5 view .LVU37
+ 161              	.LBB3:
+ 162              		.loc 1 55 10 view .LVU38
+ 163              		.loc 1 55 14 is_stmt 0 view .LVU39
+ 164 0004 0725     		movs	r5, #7
+ 165              	.LBE3:
+  54:Core/Src/ad9613.c ****     uint8_t v = 0;
+ 166              		.loc 1 54 13 view .LVU40
+ 167 0006 0026     		movs	r6, #0
+ 168              	.LBB4:
+ 169              		.loc 1 55 5 view .LVU41
+ 170 0008 08E0     		b	.L9
+ 171              	.LVL14:
+ 172              	.L10:
+  56:Core/Src/ad9613.c ****     {
+  57:Core/Src/ad9613.c ****         d->bit_delay();
+  58:Core/Src/ad9613.c ****         if (d->sdio_read())
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 5
+
+
+  59:Core/Src/ad9613.c ****             v |= (uint8_t)(1u << bit);
+  60:Core/Src/ad9613.c ****         d->sclk(1);
+ 173              		.loc 1 60 9 is_stmt 1 view .LVU42
+ 174              		.loc 1 60 10 is_stmt 0 view .LVU43
+ 175 000a 6368     		ldr	r3, [r4, #4]
+ 176              		.loc 1 60 9 view .LVU44
+ 177 000c 0120     		movs	r0, #1
+ 178 000e 9847     		blx	r3
+ 179              	.LVL15:
+  61:Core/Src/ad9613.c ****         d->bit_delay();
+ 180              		.loc 1 61 9 is_stmt 1 view .LVU45
+ 181              		.loc 1 61 10 is_stmt 0 view .LVU46
+ 182 0010 6369     		ldr	r3, [r4, #20]
+ 183              		.loc 1 61 9 view .LVU47
+ 184 0012 9847     		blx	r3
+ 185              	.LVL16:
+  62:Core/Src/ad9613.c ****         d->sclk(0);
+ 186              		.loc 1 62 9 is_stmt 1 view .LVU48
+ 187              		.loc 1 62 10 is_stmt 0 view .LVU49
+ 188 0014 6368     		ldr	r3, [r4, #4]
+ 189              		.loc 1 62 9 view .LVU50
+ 190 0016 0020     		movs	r0, #0
+ 191 0018 9847     		blx	r3
+ 192              	.LVL17:
+  55:Core/Src/ad9613.c ****     {
+ 193              		.loc 1 55 36 is_stmt 1 discriminator 2 view .LVU51
+ 194 001a 013D     		subs	r5, r5, #1
+ 195              	.LVL18:
+ 196              	.L9:
+  55:Core/Src/ad9613.c ****     {
+ 197              		.loc 1 55 27 discriminator 1 view .LVU52
+ 198 001c 002D     		cmp	r5, #0
+ 199 001e 0ADB     		blt	.L13
+  57:Core/Src/ad9613.c ****         if (d->sdio_read())
+ 200              		.loc 1 57 9 view .LVU53
+  57:Core/Src/ad9613.c ****         if (d->sdio_read())
+ 201              		.loc 1 57 10 is_stmt 0 view .LVU54
+ 202 0020 6369     		ldr	r3, [r4, #20]
+  57:Core/Src/ad9613.c ****         if (d->sdio_read())
+ 203              		.loc 1 57 9 view .LVU55
+ 204 0022 9847     		blx	r3
+ 205              	.LVL19:
+  58:Core/Src/ad9613.c ****             v |= (uint8_t)(1u << bit);
+ 206              		.loc 1 58 9 is_stmt 1 view .LVU56
+  58:Core/Src/ad9613.c ****             v |= (uint8_t)(1u << bit);
+ 207              		.loc 1 58 14 is_stmt 0 view .LVU57
+ 208 0024 2369     		ldr	r3, [r4, #16]
+  58:Core/Src/ad9613.c ****             v |= (uint8_t)(1u << bit);
+ 209              		.loc 1 58 13 view .LVU58
+ 210 0026 9847     		blx	r3
+ 211              	.LVL20:
+  58:Core/Src/ad9613.c ****             v |= (uint8_t)(1u << bit);
+ 212              		.loc 1 58 12 discriminator 1 view .LVU59
+ 213 0028 0028     		cmp	r0, #0
+ 214 002a EED0     		beq	.L10
+  59:Core/Src/ad9613.c ****         d->sclk(1);
+ 215              		.loc 1 59 13 is_stmt 1 view .LVU60
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 6
+
+
+  59:Core/Src/ad9613.c ****         d->sclk(1);
+ 216              		.loc 1 59 31 is_stmt 0 view .LVU61
+ 217 002c 0123     		movs	r3, #1
+ 218 002e AB40     		lsls	r3, r3, r5
+  59:Core/Src/ad9613.c ****         d->sclk(1);
+ 219              		.loc 1 59 18 view .LVU62
+ 220 0030 DBB2     		uxtb	r3, r3
+  59:Core/Src/ad9613.c ****         d->sclk(1);
+ 221              		.loc 1 59 15 view .LVU63
+ 222 0032 1E43     		orrs	r6, r6, r3
+ 223              	.LVL21:
+  59:Core/Src/ad9613.c ****         d->sclk(1);
+ 224              		.loc 1 59 15 view .LVU64
+ 225 0034 E9E7     		b	.L10
+ 226              	.LVL22:
+ 227              	.L13:
+  59:Core/Src/ad9613.c ****         d->sclk(1);
+ 228              		.loc 1 59 15 view .LVU65
+ 229              	.LBE4:
+  63:Core/Src/ad9613.c ****     }
+  64:Core/Src/ad9613.c ****     return v;
+ 230              		.loc 1 64 5 is_stmt 1 view .LVU66
+  65:Core/Src/ad9613.c **** }
+ 231              		.loc 1 65 1 is_stmt 0 view .LVU67
+ 232 0036 3046     		mov	r0, r6
+ 233 0038 70BD     		pop	{r4, r5, r6, pc}
+ 234              		.loc 1 65 1 view .LVU68
+ 235              		.cfi_endproc
+ 236              	.LFE6:
+ 238              		.section	.text.Df,"ax",%progbits
+ 239              		.align	1
+ 240              		.syntax unified
+ 241              		.thumb
+ 242              		.thumb_func
+ 244              	Df:
+ 245              	.LVL23:
+ 246              	.LFB4:
+  16:Core/Src/ad9613.c ****     if (!d->dbg)
+ 247              		.loc 1 16 1 is_stmt 1 view -0
+ 248              		.cfi_startproc
+ 249              		@ args = 4, pretend = 12, frame = 152
+ 250              		@ frame_needed = 0, uses_anonymous_args = 1
+  16:Core/Src/ad9613.c ****     if (!d->dbg)
+ 251              		.loc 1 16 1 is_stmt 0 view .LVU70
+ 252 0000 0EB4     		push	{r1, r2, r3}
+ 253              	.LCFI3:
+ 254              		.cfi_def_cfa_offset 12
+ 255              		.cfi_offset 1, -12
+ 256              		.cfi_offset 2, -8
+ 257              		.cfi_offset 3, -4
+ 258 0002 30B5     		push	{r4, r5, lr}
+ 259              	.LCFI4:
+ 260              		.cfi_def_cfa_offset 24
+ 261              		.cfi_offset 4, -24
+ 262              		.cfi_offset 5, -20
+ 263              		.cfi_offset 14, -16
+ 264 0004 A6B0     		sub	sp, sp, #152
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 7
+
+
+ 265              	.LCFI5:
+ 266              		.cfi_def_cfa_offset 176
+  17:Core/Src/ad9613.c ****         return;
+ 267              		.loc 1 17 5 is_stmt 1 view .LVU71
+  17:Core/Src/ad9613.c ****         return;
+ 268              		.loc 1 17 11 is_stmt 0 view .LVU72
+ 269 0006 C369     		ldr	r3, [r0, #28]
+  17:Core/Src/ad9613.c ****         return;
+ 270              		.loc 1 17 8 view .LVU73
+ 271 0008 5BB1     		cbz	r3, .L14
+ 272 000a 0446     		mov	r4, r0
+  19:Core/Src/ad9613.c ****     va_list ap;
+ 273              		.loc 1 19 5 is_stmt 1 view .LVU74
+  20:Core/Src/ad9613.c ****     va_start(ap, fmt);
+ 274              		.loc 1 20 5 view .LVU75
+  21:Core/Src/ad9613.c ****     vsnprintf(b, sizeof(b), fmt, ap);
+ 275              		.loc 1 21 5 view .LVU76
+ 276 000c 2AAB     		add	r3, sp, #168
+ 277 000e 0193     		str	r3, [sp, #4]
+  22:Core/Src/ad9613.c ****     va_end(ap);
+ 278              		.loc 1 22 5 view .LVU77
+ 279 0010 02AD     		add	r5, sp, #8
+ 280 0012 299A     		ldr	r2, [sp, #164]
+ 281 0014 9021     		movs	r1, #144
+ 282 0016 2846     		mov	r0, r5
+ 283              	.LVL24:
+  22:Core/Src/ad9613.c ****     va_end(ap);
+ 284              		.loc 1 22 5 is_stmt 0 view .LVU78
+ 285 0018 FFF7FEFF 		bl	vsnprintf
+ 286              	.LVL25:
+  23:Core/Src/ad9613.c ****     d->dbg(b);
+ 287              		.loc 1 23 5 is_stmt 1 view .LVU79
+  24:Core/Src/ad9613.c **** }
+ 288              		.loc 1 24 5 view .LVU80
+  24:Core/Src/ad9613.c **** }
+ 289              		.loc 1 24 6 is_stmt 0 view .LVU81
+ 290 001c E369     		ldr	r3, [r4, #28]
+  24:Core/Src/ad9613.c **** }
+ 291              		.loc 1 24 5 view .LVU82
+ 292 001e 2846     		mov	r0, r5
+ 293 0020 9847     		blx	r3
+ 294              	.LVL26:
+ 295              	.L14:
+  25:Core/Src/ad9613.c **** 
+ 296              		.loc 1 25 1 view .LVU83
+ 297 0022 26B0     		add	sp, sp, #152
+ 298              	.LCFI6:
+ 299              		.cfi_def_cfa_offset 24
+ 300              		@ sp needed
+ 301 0024 BDE83040 		pop	{r4, r5, lr}
+ 302              	.LCFI7:
+ 303              		.cfi_restore 14
+ 304              		.cfi_restore 5
+ 305              		.cfi_restore 4
+ 306              		.cfi_def_cfa_offset 12
+ 307 0028 03B0     		add	sp, sp, #12
+ 308              	.LCFI8:
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 8
+
+
+ 309              		.cfi_restore 3
+ 310              		.cfi_restore 2
+ 311              		.cfi_restore 1
+ 312              		.cfi_def_cfa_offset 0
+ 313 002a 7047     		bx	lr
+ 314              		.cfi_endproc
+ 315              	.LFE4:
+ 317              		.section	.text.ad9613_write,"ax",%progbits
+ 318              		.align	1
+ 319              		.global	ad9613_write
+ 320              		.syntax unified
+ 321              		.thumb
+ 322              		.thumb_func
+ 324              	ad9613_write:
+ 325              	.LVL27:
+ 326              	.LFB7:
+  66:Core/Src/ad9613.c **** 
+  67:Core/Src/ad9613.c **** int ad9613_write(ad9613_dev_t *d, uint16_t reg, uint8_t val)
+  68:Core/Src/ad9613.c **** {
+ 327              		.loc 1 68 1 is_stmt 1 view -0
+ 328              		.cfi_startproc
+ 329              		@ args = 0, pretend = 0, frame = 0
+ 330              		@ frame_needed = 0, uses_anonymous_args = 0
+ 331              		.loc 1 68 1 is_stmt 0 view .LVU85
+ 332 0000 70B5     		push	{r4, r5, r6, lr}
+ 333              	.LCFI9:
+ 334              		.cfi_def_cfa_offset 16
+ 335              		.cfi_offset 4, -16
+ 336              		.cfi_offset 5, -12
+ 337              		.cfi_offset 6, -8
+ 338              		.cfi_offset 14, -4
+ 339 0002 0446     		mov	r4, r0
+ 340 0004 1646     		mov	r6, r2
+  69:Core/Src/ad9613.c ****     uint16_t cmd = (uint16_t)(reg & 0x1FFFu); /* write, 1 byte */
+ 341              		.loc 1 69 5 is_stmt 1 view .LVU86
+ 342              		.loc 1 69 14 is_stmt 0 view .LVU87
+ 343 0006 C1F30C05 		ubfx	r5, r1, #0, #13
+ 344              	.LVL28:
+  70:Core/Src/ad9613.c **** 
+  71:Core/Src/ad9613.c ****     d->sdio_dir(1);
+ 345              		.loc 1 71 5 is_stmt 1 view .LVU88
+ 346              		.loc 1 71 6 is_stmt 0 view .LVU89
+ 347 000a C368     		ldr	r3, [r0, #12]
+ 348              		.loc 1 71 5 view .LVU90
+ 349 000c 0120     		movs	r0, #1
+ 350              	.LVL29:
+ 351              		.loc 1 71 5 view .LVU91
+ 352 000e 9847     		blx	r3
+ 353              	.LVL30:
+  72:Core/Src/ad9613.c ****     d->sclk(0);
+ 354              		.loc 1 72 5 is_stmt 1 view .LVU92
+ 355              		.loc 1 72 6 is_stmt 0 view .LVU93
+ 356 0010 6368     		ldr	r3, [r4, #4]
+ 357              		.loc 1 72 5 view .LVU94
+ 358 0012 0020     		movs	r0, #0
+ 359 0014 9847     		blx	r3
+ 360              	.LVL31:
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 9
+
+
+  73:Core/Src/ad9613.c ****     d->cs(0);
+ 361              		.loc 1 73 5 is_stmt 1 view .LVU95
+ 362              		.loc 1 73 6 is_stmt 0 view .LVU96
+ 363 0016 2368     		ldr	r3, [r4]
+ 364              		.loc 1 73 5 view .LVU97
+ 365 0018 0020     		movs	r0, #0
+ 366 001a 9847     		blx	r3
+ 367              	.LVL32:
+  74:Core/Src/ad9613.c ****     d->bit_delay();
+ 368              		.loc 1 74 5 is_stmt 1 view .LVU98
+ 369              		.loc 1 74 6 is_stmt 0 view .LVU99
+ 370 001c 6369     		ldr	r3, [r4, #20]
+ 371              		.loc 1 74 5 view .LVU100
+ 372 001e 9847     		blx	r3
+ 373              	.LVL33:
+  75:Core/Src/ad9613.c **** 
+  76:Core/Src/ad9613.c ****     shift_out(d, (uint8_t)(cmd >> 8));
+ 374              		.loc 1 76 5 is_stmt 1 view .LVU101
+ 375 0020 290A     		lsrs	r1, r5, #8
+ 376 0022 2046     		mov	r0, r4
+ 377 0024 FFF7FEFF 		bl	shift_out
+ 378              	.LVL34:
+  77:Core/Src/ad9613.c ****     shift_out(d, (uint8_t)(cmd & 0xFF));
+ 379              		.loc 1 77 5 view .LVU102
+ 380 0028 E9B2     		uxtb	r1, r5
+ 381 002a 2046     		mov	r0, r4
+ 382 002c FFF7FEFF 		bl	shift_out
+ 383              	.LVL35:
+  78:Core/Src/ad9613.c ****     shift_out(d, val);
+ 384              		.loc 1 78 5 view .LVU103
+ 385 0030 3146     		mov	r1, r6
+ 386 0032 2046     		mov	r0, r4
+ 387 0034 FFF7FEFF 		bl	shift_out
+ 388              	.LVL36:
+  79:Core/Src/ad9613.c **** 
+  80:Core/Src/ad9613.c ****     d->bit_delay();
+ 389              		.loc 1 80 5 view .LVU104
+ 390              		.loc 1 80 6 is_stmt 0 view .LVU105
+ 391 0038 6369     		ldr	r3, [r4, #20]
+ 392              		.loc 1 80 5 view .LVU106
+ 393 003a 9847     		blx	r3
+ 394              	.LVL37:
+  81:Core/Src/ad9613.c ****     d->cs(1);
+ 395              		.loc 1 81 5 is_stmt 1 view .LVU107
+ 396              		.loc 1 81 6 is_stmt 0 view .LVU108
+ 397 003c 2368     		ldr	r3, [r4]
+ 398              		.loc 1 81 5 view .LVU109
+ 399 003e 0120     		movs	r0, #1
+ 400 0040 9847     		blx	r3
+ 401              	.LVL38:
+  82:Core/Src/ad9613.c ****     d->bit_delay();
+ 402              		.loc 1 82 5 is_stmt 1 view .LVU110
+ 403              		.loc 1 82 6 is_stmt 0 view .LVU111
+ 404 0042 6369     		ldr	r3, [r4, #20]
+ 405              		.loc 1 82 5 view .LVU112
+ 406 0044 9847     		blx	r3
+ 407              	.LVL39:
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 10
+
+
+  83:Core/Src/ad9613.c ****     return 0;
+ 408              		.loc 1 83 5 is_stmt 1 view .LVU113
+  84:Core/Src/ad9613.c **** }
+ 409              		.loc 1 84 1 is_stmt 0 view .LVU114
+ 410 0046 0020     		movs	r0, #0
+ 411 0048 70BD     		pop	{r4, r5, r6, pc}
+ 412              		.loc 1 84 1 view .LVU115
+ 413              		.cfi_endproc
+ 414              	.LFE7:
+ 416              		.section	.text.ad9613_read,"ax",%progbits
+ 417              		.align	1
+ 418              		.global	ad9613_read
+ 419              		.syntax unified
+ 420              		.thumb
+ 421              		.thumb_func
+ 423              	ad9613_read:
+ 424              	.LVL40:
+ 425              	.LFB8:
+  85:Core/Src/ad9613.c **** 
+  86:Core/Src/ad9613.c **** int ad9613_read(ad9613_dev_t *d, uint16_t reg, uint8_t *val)
+  87:Core/Src/ad9613.c **** {
+ 426              		.loc 1 87 1 is_stmt 1 view -0
+ 427              		.cfi_startproc
+ 428              		@ args = 0, pretend = 0, frame = 0
+ 429              		@ frame_needed = 0, uses_anonymous_args = 0
+ 430              		.loc 1 87 1 is_stmt 0 view .LVU117
+ 431 0000 70B5     		push	{r4, r5, r6, lr}
+ 432              	.LCFI10:
+ 433              		.cfi_def_cfa_offset 16
+ 434              		.cfi_offset 4, -16
+ 435              		.cfi_offset 5, -12
+ 436              		.cfi_offset 6, -8
+ 437              		.cfi_offset 14, -4
+ 438 0002 0446     		mov	r4, r0
+ 439 0004 1646     		mov	r6, r2
+  88:Core/Src/ad9613.c ****     uint16_t cmd = (uint16_t)(0x8000u | (reg & 0x1FFFu)); /* read, 1 byte */
+ 440              		.loc 1 88 5 is_stmt 1 view .LVU118
+ 441              		.loc 1 88 46 is_stmt 0 view .LVU119
+ 442 0006 C1F30C01 		ubfx	r1, r1, #0, #13
+ 443              	.LVL41:
+ 444              		.loc 1 88 14 view .LVU120
+ 445 000a 41F40045 		orr	r5, r1, #32768
+ 446              	.LVL42:
+  89:Core/Src/ad9613.c **** 
+  90:Core/Src/ad9613.c ****     d->sdio_dir(1);
+ 447              		.loc 1 90 5 is_stmt 1 view .LVU121
+ 448              		.loc 1 90 6 is_stmt 0 view .LVU122
+ 449 000e C368     		ldr	r3, [r0, #12]
+ 450              		.loc 1 90 5 view .LVU123
+ 451 0010 0120     		movs	r0, #1
+ 452              	.LVL43:
+ 453              		.loc 1 90 5 view .LVU124
+ 454 0012 9847     		blx	r3
+ 455              	.LVL44:
+  91:Core/Src/ad9613.c ****     d->sclk(0);
+ 456              		.loc 1 91 5 is_stmt 1 view .LVU125
+ 457              		.loc 1 91 6 is_stmt 0 view .LVU126
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 11
+
+
+ 458 0014 6368     		ldr	r3, [r4, #4]
+ 459              		.loc 1 91 5 view .LVU127
+ 460 0016 0020     		movs	r0, #0
+ 461 0018 9847     		blx	r3
+ 462              	.LVL45:
+  92:Core/Src/ad9613.c ****     d->cs(0);
+ 463              		.loc 1 92 5 is_stmt 1 view .LVU128
+ 464              		.loc 1 92 6 is_stmt 0 view .LVU129
+ 465 001a 2368     		ldr	r3, [r4]
+ 466              		.loc 1 92 5 view .LVU130
+ 467 001c 0020     		movs	r0, #0
+ 468 001e 9847     		blx	r3
+ 469              	.LVL46:
+  93:Core/Src/ad9613.c ****     d->bit_delay();
+ 470              		.loc 1 93 5 is_stmt 1 view .LVU131
+ 471              		.loc 1 93 6 is_stmt 0 view .LVU132
+ 472 0020 6369     		ldr	r3, [r4, #20]
+ 473              		.loc 1 93 5 view .LVU133
+ 474 0022 9847     		blx	r3
+ 475              	.LVL47:
+  94:Core/Src/ad9613.c **** 
+  95:Core/Src/ad9613.c ****     shift_out(d, (uint8_t)(cmd >> 8));
+ 476              		.loc 1 95 5 is_stmt 1 view .LVU134
+ 477 0024 290A     		lsrs	r1, r5, #8
+ 478 0026 2046     		mov	r0, r4
+ 479 0028 FFF7FEFF 		bl	shift_out
+ 480              	.LVL48:
+  96:Core/Src/ad9613.c ****     shift_out(d, (uint8_t)(cmd & 0xFF));
+ 481              		.loc 1 96 5 view .LVU135
+ 482 002c E9B2     		uxtb	r1, r5
+ 483 002e 2046     		mov	r0, r4
+ 484 0030 FFF7FEFF 		bl	shift_out
+ 485              	.LVL49:
+  97:Core/Src/ad9613.c **** 
+  98:Core/Src/ad9613.c ****     /* Turnaround: the part takes over SDIO for the data phase. */
+  99:Core/Src/ad9613.c ****     d->sdio_dir(0);
+ 486              		.loc 1 99 5 view .LVU136
+ 487              		.loc 1 99 6 is_stmt 0 view .LVU137
+ 488 0034 E368     		ldr	r3, [r4, #12]
+ 489              		.loc 1 99 5 view .LVU138
+ 490 0036 0020     		movs	r0, #0
+ 491 0038 9847     		blx	r3
+ 492              	.LVL50:
+ 100:Core/Src/ad9613.c ****     d->bit_delay();
+ 493              		.loc 1 100 5 is_stmt 1 view .LVU139
+ 494              		.loc 1 100 6 is_stmt 0 view .LVU140
+ 495 003a 6369     		ldr	r3, [r4, #20]
+ 496              		.loc 1 100 5 view .LVU141
+ 497 003c 9847     		blx	r3
+ 498              	.LVL51:
+ 101:Core/Src/ad9613.c ****     d->bit_delay();
+ 499              		.loc 1 101 5 is_stmt 1 view .LVU142
+ 500              		.loc 1 101 6 is_stmt 0 view .LVU143
+ 501 003e 6369     		ldr	r3, [r4, #20]
+ 502              		.loc 1 101 5 view .LVU144
+ 503 0040 9847     		blx	r3
+ 504              	.LVL52:
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 12
+
+
+ 102:Core/Src/ad9613.c **** 
+ 103:Core/Src/ad9613.c ****     *val = shift_in(d);
+ 505              		.loc 1 103 5 is_stmt 1 view .LVU145
+ 506              		.loc 1 103 12 is_stmt 0 view .LVU146
+ 507 0042 2046     		mov	r0, r4
+ 508 0044 FFF7FEFF 		bl	shift_in
+ 509              	.LVL53:
+ 510              		.loc 1 103 10 discriminator 1 view .LVU147
+ 511 0048 3070     		strb	r0, [r6]
+ 104:Core/Src/ad9613.c **** 
+ 105:Core/Src/ad9613.c ****     d->cs(1);
+ 512              		.loc 1 105 5 is_stmt 1 view .LVU148
+ 513              		.loc 1 105 6 is_stmt 0 view .LVU149
+ 514 004a 2368     		ldr	r3, [r4]
+ 515              		.loc 1 105 5 view .LVU150
+ 516 004c 0120     		movs	r0, #1
+ 517 004e 9847     		blx	r3
+ 518              	.LVL54:
+ 106:Core/Src/ad9613.c ****     d->sdio_dir(1);
+ 519              		.loc 1 106 5 is_stmt 1 view .LVU151
+ 520              		.loc 1 106 6 is_stmt 0 view .LVU152
+ 521 0050 E368     		ldr	r3, [r4, #12]
+ 522              		.loc 1 106 5 view .LVU153
+ 523 0052 0120     		movs	r0, #1
+ 524 0054 9847     		blx	r3
+ 525              	.LVL55:
+ 107:Core/Src/ad9613.c ****     d->bit_delay();
+ 526              		.loc 1 107 5 is_stmt 1 view .LVU154
+ 527              		.loc 1 107 6 is_stmt 0 view .LVU155
+ 528 0056 6369     		ldr	r3, [r4, #20]
+ 529              		.loc 1 107 5 view .LVU156
+ 530 0058 9847     		blx	r3
+ 531              	.LVL56:
+ 108:Core/Src/ad9613.c ****     return 0;
+ 532              		.loc 1 108 5 is_stmt 1 view .LVU157
+ 109:Core/Src/ad9613.c **** }
+ 533              		.loc 1 109 1 is_stmt 0 view .LVU158
+ 534 005a 0020     		movs	r0, #0
+ 535 005c 70BD     		pop	{r4, r5, r6, pc}
+ 536              		.loc 1 109 1 view .LVU159
+ 537              		.cfi_endproc
+ 538              	.LFE8:
+ 540              		.section	.text.ad9613_transfer,"ax",%progbits
+ 541              		.align	1
+ 542              		.global	ad9613_transfer
+ 543              		.syntax unified
+ 544              		.thumb
+ 545              		.thumb_func
+ 547              	ad9613_transfer:
+ 548              	.LVL57:
+ 549              	.LFB9:
+ 110:Core/Src/ad9613.c **** 
+ 111:Core/Src/ad9613.c **** int ad9613_transfer(ad9613_dev_t *d)
+ 112:Core/Src/ad9613.c **** {
+ 550              		.loc 1 112 1 is_stmt 1 view -0
+ 551              		.cfi_startproc
+ 552              		@ args = 0, pretend = 0, frame = 0
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 13
+
+
+ 553              		@ frame_needed = 0, uses_anonymous_args = 0
+ 554              		.loc 1 112 1 is_stmt 0 view .LVU161
+ 555 0000 08B5     		push	{r3, lr}
+ 556              	.LCFI11:
+ 557              		.cfi_def_cfa_offset 8
+ 558              		.cfi_offset 3, -8
+ 559              		.cfi_offset 14, -4
+ 113:Core/Src/ad9613.c ****     /* Registers 0x08 to 0x20 and 0x3A are shadowed; writes do not take
+ 114:Core/Src/ad9613.c ****      * effect until the transfer bit is set. The bit is self-clearing. */
+ 115:Core/Src/ad9613.c ****     return ad9613_write(d, AD9613_TRANSFER, AD9613_TRANSFER_NOW);
+ 560              		.loc 1 115 5 is_stmt 1 view .LVU162
+ 561              		.loc 1 115 12 is_stmt 0 view .LVU163
+ 562 0002 0122     		movs	r2, #1
+ 563 0004 FF21     		movs	r1, #255
+ 564 0006 FFF7FEFF 		bl	ad9613_write
+ 565              	.LVL58:
+ 116:Core/Src/ad9613.c **** }
+ 566              		.loc 1 116 1 view .LVU164
+ 567 000a 08BD     		pop	{r3, pc}
+ 568              		.cfi_endproc
+ 569              	.LFE9:
+ 571              		.section	.text.ad9613_chip_id,"ax",%progbits
+ 572              		.align	1
+ 573              		.global	ad9613_chip_id
+ 574              		.syntax unified
+ 575              		.thumb
+ 576              		.thumb_func
+ 578              	ad9613_chip_id:
+ 579              	.LVL59:
+ 580              	.LFB10:
+ 117:Core/Src/ad9613.c **** 
+ 118:Core/Src/ad9613.c **** /* ------------------------------------------------------------------ */
+ 119:Core/Src/ad9613.c **** /* identification                                                      */
+ 120:Core/Src/ad9613.c **** /* ------------------------------------------------------------------ */
+ 121:Core/Src/ad9613.c **** 
+ 122:Core/Src/ad9613.c **** int ad9613_chip_id(ad9613_dev_t *d, uint8_t *id)
+ 123:Core/Src/ad9613.c **** {
+ 581              		.loc 1 123 1 is_stmt 1 view -0
+ 582              		.cfi_startproc
+ 583              		@ args = 0, pretend = 0, frame = 0
+ 584              		@ frame_needed = 0, uses_anonymous_args = 0
+ 585              		.loc 1 123 1 is_stmt 0 view .LVU166
+ 586 0000 08B5     		push	{r3, lr}
+ 587              	.LCFI12:
+ 588              		.cfi_def_cfa_offset 8
+ 589              		.cfi_offset 3, -8
+ 590              		.cfi_offset 14, -4
+ 591 0002 0A46     		mov	r2, r1
+ 124:Core/Src/ad9613.c ****     return ad9613_read(d, AD9613_CHIP_ID, id);
+ 592              		.loc 1 124 5 is_stmt 1 view .LVU167
+ 593              		.loc 1 124 12 is_stmt 0 view .LVU168
+ 594 0004 0121     		movs	r1, #1
+ 595              	.LVL60:
+ 596              		.loc 1 124 12 view .LVU169
+ 597 0006 FFF7FEFF 		bl	ad9613_read
+ 598              	.LVL61:
+ 125:Core/Src/ad9613.c **** }
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 14
+
+
+ 599              		.loc 1 125 1 view .LVU170
+ 600 000a 08BD     		pop	{r3, pc}
+ 601              		.cfi_endproc
+ 602              	.LFE10:
+ 604              		.section	.text.ad9613_max_msps,"ax",%progbits
+ 605              		.align	1
+ 606              		.global	ad9613_max_msps
+ 607              		.syntax unified
+ 608              		.thumb
+ 609              		.thumb_func
+ 611              	ad9613_max_msps:
+ 612              	.LVL62:
+ 613              	.LFB11:
+ 126:Core/Src/ad9613.c **** 
+ 127:Core/Src/ad9613.c **** int ad9613_max_msps(ad9613_dev_t *d)
+ 128:Core/Src/ad9613.c **** {
+ 614              		.loc 1 128 1 is_stmt 1 view -0
+ 615              		.cfi_startproc
+ 616              		@ args = 0, pretend = 0, frame = 8
+ 617              		@ frame_needed = 0, uses_anonymous_args = 0
+ 618              		.loc 1 128 1 is_stmt 0 view .LVU172
+ 619 0000 00B5     		push	{lr}
+ 620              	.LCFI13:
+ 621              		.cfi_def_cfa_offset 4
+ 622              		.cfi_offset 14, -4
+ 623 0002 83B0     		sub	sp, sp, #12
+ 624              	.LCFI14:
+ 625              		.cfi_def_cfa_offset 16
+ 129:Core/Src/ad9613.c ****     uint8_t g = 0;
+ 626              		.loc 1 129 5 is_stmt 1 view .LVU173
+ 627              		.loc 1 129 13 is_stmt 0 view .LVU174
+ 628 0004 0023     		movs	r3, #0
+ 629 0006 8DF80730 		strb	r3, [sp, #7]
+ 130:Core/Src/ad9613.c ****     if (ad9613_read(d, AD9613_CHIP_GRADE, &g) < 0)
+ 630              		.loc 1 130 5 is_stmt 1 view .LVU175
+ 631              		.loc 1 130 9 is_stmt 0 view .LVU176
+ 632 000a 0DF10702 		add	r2, sp, #7
+ 633 000e 0221     		movs	r1, #2
+ 634 0010 FFF7FEFF 		bl	ad9613_read
+ 635              	.LVL63:
+ 636              		.loc 1 130 8 discriminator 1 view .LVU177
+ 637 0014 0028     		cmp	r0, #0
+ 638 0016 0ADB     		blt	.L28
+ 131:Core/Src/ad9613.c ****         return 0;
+ 132:Core/Src/ad9613.c **** 
+ 133:Core/Src/ad9613.c ****     switch (g & AD9613_GRADE_MASK)
+ 639              		.loc 1 133 5 is_stmt 1 view .LVU178
+ 640              		.loc 1 133 15 is_stmt 0 view .LVU179
+ 641 0018 9DF80730 		ldrb	r3, [sp, #7]	@ zero_extendqisi2
+ 642 001c 03F03003 		and	r3, r3, #48
+ 643              		.loc 1 133 5 view .LVU180
+ 644 0020 102B     		cmp	r3, #16
+ 645 0022 08D0     		beq	.L29
+ 646 0024 302B     		cmp	r3, #48
+ 647 0026 08D0     		beq	.L30
+ 648 0028 4BB9     		cbnz	r3, .L31
+ 649 002a FA20     		movs	r0, #250
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 15
+
+
+ 650 002c 00E0     		b	.L26
+ 651              	.L28:
+ 131:Core/Src/ad9613.c ****         return 0;
+ 652              		.loc 1 131 16 view .LVU181
+ 653 002e 0020     		movs	r0, #0
+ 654              	.L26:
+ 134:Core/Src/ad9613.c ****     {
+ 135:Core/Src/ad9613.c ****     case AD9613_GRADE_250:
+ 136:Core/Src/ad9613.c ****         return 250;
+ 137:Core/Src/ad9613.c ****     case AD9613_GRADE_210:
+ 138:Core/Src/ad9613.c ****         return 210;
+ 139:Core/Src/ad9613.c ****     case AD9613_GRADE_170:
+ 140:Core/Src/ad9613.c ****         return 170;
+ 141:Core/Src/ad9613.c ****     default:
+ 142:Core/Src/ad9613.c ****         return 0;
+ 143:Core/Src/ad9613.c ****     }
+ 144:Core/Src/ad9613.c **** }
+ 655              		.loc 1 144 1 view .LVU182
+ 656 0030 03B0     		add	sp, sp, #12
+ 657              	.LCFI15:
+ 658              		.cfi_remember_state
+ 659              		.cfi_def_cfa_offset 4
+ 660              		@ sp needed
+ 661 0032 5DF804FB 		ldr	pc, [sp], #4
+ 662              	.L29:
+ 663              	.LCFI16:
+ 664              		.cfi_restore_state
+ 138:Core/Src/ad9613.c ****     case AD9613_GRADE_170:
+ 665              		.loc 1 138 16 view .LVU183
+ 666 0036 D220     		movs	r0, #210
+ 667 0038 FAE7     		b	.L26
+ 668              	.L30:
+ 140:Core/Src/ad9613.c ****     default:
+ 669              		.loc 1 140 16 view .LVU184
+ 670 003a AA20     		movs	r0, #170
+ 671 003c F8E7     		b	.L26
+ 672              	.L31:
+ 142:Core/Src/ad9613.c ****     }
+ 673              		.loc 1 142 16 view .LVU185
+ 674 003e 0020     		movs	r0, #0
+ 675 0040 F6E7     		b	.L26
+ 676              		.cfi_endproc
+ 677              	.LFE11:
+ 679              		.section	.rodata.ad9613_init_lvds.str1.4,"aMS",%progbits,1
+ 680              		.align	2
+ 681              	.LC0:
+ 682 0000 6F666673 		.ascii	"offset binary\000"
+ 682      65742062 
+ 682      696E6172 
+ 682      7900
+ 683 000e 0000     		.align	2
+ 684              	.LC1:
+ 685 0010 74776F73 		.ascii	"twos complement\000"
+ 685      20636F6D 
+ 685      706C656D 
+ 685      656E7400 
+ 686              		.align	2
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 16
+
+
+ 687              	.LC2:
+ 688 0020 0D0A3D3D 		.ascii	"\015\012==== AD9613 bring-up ====\015\012\000"
+ 688      3D3D2041 
+ 688      44393631 
+ 688      33206272 
+ 688      696E672D 
+ 689 003e 0000     		.align	2
+ 690              	.LC3:
+ 691 0040 63686970 		.ascii	"chip ID = 0x%02X (expect 0x%02X)\015\012\000"
+ 691      20494420 
+ 691      3D203078 
+ 691      25303258 
+ 691      20286578 
+ 692 0063 00       		.align	2
+ 693              	.LC4:
+ 694 0064 41443936 		.ascii	"AD9613 not responding correctly on the serial port\015"
+ 694      3133206E 
+ 694      6F742072 
+ 694      6573706F 
+ 694      6E64696E 
+ 695 0097 0A00     		.ascii	"\012\000"
+ 696 0099 000000   		.align	2
+ 697              	.LC5:
+ 698 009c 73706565 		.ascii	"speed grade = %d MSPS, requested %lu MSPS\015\012\000"
+ 698      64206772 
+ 698      61646520 
+ 698      3D202564 
+ 698      204D5350 
+ 699              		.align	2
+ 700              	.LC6:
+ 701 00c8 52455155 		.ascii	"REQUESTED RATE EXCEEDS GRADE - %lu > %d MSPS\015\012"
+ 701      45535445 
+ 701      44205241 
+ 701      54452045 
+ 701      58434545 
+ 702 00f6 00       		.ascii	"\000"
+ 703 00f7 00       		.align	2
+ 704              	.LC7:
+ 705 00f8 5741524E 		.ascii	"WARNING: below the 40 MSPS minimum; dynamic perform"
+ 705      494E473A 
+ 705      2062656C 
+ 705      6F772074 
+ 705      68652034 
+ 706 012b 616E6365 		.ascii	"ance\015\012\000"
+ 706      0D0A00
+ 707 0132 0000     		.align	2
+ 708              	.LC8:
+ 709 0134 20202020 		.ascii	"         degrades at clock rates under 40 MSPS\015\012"
+ 709      20202020 
+ 709      20646567 
+ 709      72616465 
+ 709      73206174 
+ 710 0164 00       		.ascii	"\000"
+ 711 0165 000000   		.align	2
+ 712              	.LC9:
+ 713 0168 636F6E66 		.ascii	"configured: interleaved parallel LVDS, %s, ANSI lev"
+ 713      69677572 
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 17
+
+
+ 713      65643A20 
+ 713      696E7465 
+ 713      726C6561 
+ 714 019b 656C730D 		.ascii	"els\015\012\000"
+ 714      0A00
+ 715 01a1 000000   		.align	2
+ 716              	.LC10:
+ 717 01a4 44434F20 		.ascii	"DCO carries the data clock; OEB pin must be low for"
+ 717      63617272 
+ 717      69657320 
+ 717      74686520 
+ 717      64617461 
+ 718 01d7 206F7574 		.ascii	" output\015\012\000"
+ 718      7075740D 
+ 718      0A00
+ 719              		.section	.text.ad9613_init_lvds,"ax",%progbits
+ 720              		.align	1
+ 721              		.global	ad9613_init_lvds
+ 722              		.syntax unified
+ 723              		.thumb
+ 724              		.thumb_func
+ 726              	ad9613_init_lvds:
+ 727              	.LVL64:
+ 728              	.LFB12:
+ 145:Core/Src/ad9613.c **** 
+ 146:Core/Src/ad9613.c **** /* ------------------------------------------------------------------ */
+ 147:Core/Src/ad9613.c **** /* bring-up                                                            */
+ 148:Core/Src/ad9613.c **** /* ------------------------------------------------------------------ */
+ 149:Core/Src/ad9613.c **** 
+ 150:Core/Src/ad9613.c **** int ad9613_init_lvds(ad9613_dev_t *d, uint32_t sample_hz,
+ 151:Core/Src/ad9613.c ****                      ad9613_format_t format)
+ 152:Core/Src/ad9613.c **** {
+ 729              		.loc 1 152 1 is_stmt 1 view -0
+ 730              		.cfi_startproc
+ 731              		@ args = 0, pretend = 0, frame = 8
+ 732              		@ frame_needed = 0, uses_anonymous_args = 0
+ 733              		.loc 1 152 1 is_stmt 0 view .LVU187
+ 734 0000 2DE9F041 		push	{r4, r5, r6, r7, r8, lr}
+ 735              	.LCFI17:
+ 736              		.cfi_def_cfa_offset 24
+ 737              		.cfi_offset 4, -24
+ 738              		.cfi_offset 5, -20
+ 739              		.cfi_offset 6, -16
+ 740              		.cfi_offset 7, -12
+ 741              		.cfi_offset 8, -8
+ 742              		.cfi_offset 14, -4
+ 743 0004 82B0     		sub	sp, sp, #8
+ 744              	.LCFI18:
+ 745              		.cfi_def_cfa_offset 32
+ 746 0006 0446     		mov	r4, r0
+ 747 0008 0F46     		mov	r7, r1
+ 748 000a 9046     		mov	r8, r2
+ 153:Core/Src/ad9613.c ****     D(d, "\r\n==== AD9613 bring-up ====\r\n");
+ 749              		.loc 1 153 5 is_stmt 1 view .LVU188
+ 750 000c 5849     		ldr	r1, .L45
+ 751              	.LVL65:
+ 752              		.loc 1 153 5 is_stmt 0 view .LVU189
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 18
+
+
+ 753 000e FFF7FEFF 		bl	D
+ 754              	.LVL66:
+ 154:Core/Src/ad9613.c **** 
+ 155:Core/Src/ad9613.c ****     /* 1. Soft reset. The channel index must be 0x03 when writing 0x00. */
+ 156:Core/Src/ad9613.c ****     ad9613_write(d, AD9613_CHAN_INDEX, AD9613_CHAN_BOTH);
+ 755              		.loc 1 156 5 is_stmt 1 view .LVU190
+ 756 0012 0322     		movs	r2, #3
+ 757 0014 0521     		movs	r1, #5
+ 758 0016 2046     		mov	r0, r4
+ 759 0018 FFF7FEFF 		bl	ad9613_write
+ 760              	.LVL67:
+ 157:Core/Src/ad9613.c ****     ad9613_write(d, AD9613_SPI_CONFIG,
+ 761              		.loc 1 157 5 view .LVU191
+ 762 001c 3C22     		movs	r2, #60
+ 763 001e 0021     		movs	r1, #0
+ 764 0020 2046     		mov	r0, r4
+ 765 0022 FFF7FEFF 		bl	ad9613_write
+ 766              	.LVL68:
+ 158:Core/Src/ad9613.c ****                  (uint8_t)(AD9613_SPI_CONFIG_DEF | AD9613_SOFT_RESET));
+ 159:Core/Src/ad9613.c ****     d->delay_ms(2);
+ 767              		.loc 1 159 5 view .LVU192
+ 768              		.loc 1 159 6 is_stmt 0 view .LVU193
+ 769 0026 A369     		ldr	r3, [r4, #24]
+ 770              		.loc 1 159 5 view .LVU194
+ 771 0028 0220     		movs	r0, #2
+ 772 002a 9847     		blx	r3
+ 773              	.LVL69:
+ 160:Core/Src/ad9613.c ****     ad9613_write(d, AD9613_SPI_CONFIG, AD9613_SPI_CONFIG_DEF);
+ 774              		.loc 1 160 5 is_stmt 1 view .LVU195
+ 775 002c 1822     		movs	r2, #24
+ 776 002e 0021     		movs	r1, #0
+ 777 0030 2046     		mov	r0, r4
+ 778 0032 FFF7FEFF 		bl	ad9613_write
+ 779              	.LVL70:
+ 161:Core/Src/ad9613.c ****     d->delay_ms(2);
+ 780              		.loc 1 161 5 view .LVU196
+ 781              		.loc 1 161 6 is_stmt 0 view .LVU197
+ 782 0036 A369     		ldr	r3, [r4, #24]
+ 783              		.loc 1 161 5 view .LVU198
+ 784 0038 0220     		movs	r0, #2
+ 785 003a 9847     		blx	r3
+ 786              	.LVL71:
+ 162:Core/Src/ad9613.c **** 
+ 163:Core/Src/ad9613.c ****     /* 2. Identify. */
+ 164:Core/Src/ad9613.c ****     uint8_t id = 0;
+ 787              		.loc 1 164 5 is_stmt 1 view .LVU199
+ 788              		.loc 1 164 13 is_stmt 0 view .LVU200
+ 789 003c 0023     		movs	r3, #0
+ 790 003e 8DF80730 		strb	r3, [sp, #7]
+ 165:Core/Src/ad9613.c ****     ad9613_chip_id(d, &id);
+ 791              		.loc 1 165 5 is_stmt 1 view .LVU201
+ 792 0042 0DF10701 		add	r1, sp, #7
+ 793 0046 2046     		mov	r0, r4
+ 794 0048 FFF7FEFF 		bl	ad9613_chip_id
+ 795              	.LVL72:
+ 166:Core/Src/ad9613.c ****     Df(d, "chip ID = 0x%02X (expect 0x%02X)\r\n", id, AD9613_ID_EXPECTED);
+ 796              		.loc 1 166 5 view .LVU202
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 19
+
+
+ 797 004c 8323     		movs	r3, #131
+ 798 004e 9DF80720 		ldrb	r2, [sp, #7]	@ zero_extendqisi2
+ 799 0052 4849     		ldr	r1, .L45+4
+ 800 0054 2046     		mov	r0, r4
+ 801 0056 FFF7FEFF 		bl	Df
+ 802              	.LVL73:
+ 167:Core/Src/ad9613.c ****     if (id != AD9613_ID_EXPECTED)
+ 803              		.loc 1 167 5 view .LVU203
+ 804              		.loc 1 167 12 is_stmt 0 view .LVU204
+ 805 005a 9DF80730 		ldrb	r3, [sp, #7]	@ zero_extendqisi2
+ 806              		.loc 1 167 8 view .LVU205
+ 807 005e 832B     		cmp	r3, #131
+ 808 0060 6AD1     		bne	.L41
+ 168:Core/Src/ad9613.c ****     {
+ 169:Core/Src/ad9613.c ****         D(d, "AD9613 not responding correctly on the serial port\r\n");
+ 170:Core/Src/ad9613.c ****         return -1;
+ 171:Core/Src/ad9613.c ****     }
+ 172:Core/Src/ad9613.c **** 
+ 173:Core/Src/ad9613.c ****     int max_msps = ad9613_max_msps(d);
+ 809              		.loc 1 173 5 is_stmt 1 view .LVU206
+ 810              		.loc 1 173 20 is_stmt 0 view .LVU207
+ 811 0062 2046     		mov	r0, r4
+ 812 0064 FFF7FEFF 		bl	ad9613_max_msps
+ 813              	.LVL74:
+ 814 0068 0646     		mov	r6, r0
+ 815              	.LVL75:
+ 174:Core/Src/ad9613.c ****     uint32_t msps = sample_hz / 1000000u;
+ 816              		.loc 1 174 5 is_stmt 1 view .LVU208
+ 817              		.loc 1 174 14 is_stmt 0 view .LVU209
+ 818 006a 434D     		ldr	r5, .L45+8
+ 819 006c A5FB0735 		umull	r3, r5, r5, r7
+ 820 0070 AD0C     		lsrs	r5, r5, #18
+ 821              	.LVL76:
+ 175:Core/Src/ad9613.c ****     Df(d, "speed grade = %d MSPS, requested %lu MSPS\r\n",
+ 822              		.loc 1 175 5 is_stmt 1 view .LVU210
+ 823 0072 2B46     		mov	r3, r5
+ 824 0074 0246     		mov	r2, r0
+ 825 0076 4149     		ldr	r1, .L45+12
+ 826 0078 2046     		mov	r0, r4
+ 827              	.LVL77:
+ 828              		.loc 1 175 5 is_stmt 0 view .LVU211
+ 829 007a FFF7FEFF 		bl	Df
+ 830              	.LVL78:
+ 176:Core/Src/ad9613.c ****        max_msps, (unsigned long)msps);
+ 177:Core/Src/ad9613.c **** 
+ 178:Core/Src/ad9613.c ****     if (max_msps && msps > (uint32_t)max_msps)
+ 831              		.loc 1 178 5 is_stmt 1 view .LVU212
+ 832              		.loc 1 178 8 is_stmt 0 view .LVU213
+ 833 007e 0EB1     		cbz	r6, .L36
+ 834              		.loc 1 178 18 discriminator 1 view .LVU214
+ 835 0080 AE42     		cmp	r6, r5
+ 836 0082 60D3     		bcc	.L42
+ 837              	.L36:
+ 179:Core/Src/ad9613.c ****     {
+ 180:Core/Src/ad9613.c ****         Df(d, "REQUESTED RATE EXCEEDS GRADE - %lu > %d MSPS\r\n",
+ 181:Core/Src/ad9613.c ****            (unsigned long)msps, max_msps);
+ 182:Core/Src/ad9613.c ****         return -1;
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 20
+
+
+ 183:Core/Src/ad9613.c ****     }
+ 184:Core/Src/ad9613.c ****     if (msps < 40)
+ 838              		.loc 1 184 5 is_stmt 1 view .LVU215
+ 839              		.loc 1 184 8 is_stmt 0 view .LVU216
+ 840 0084 3E4B     		ldr	r3, .L45+16
+ 841 0086 9F42     		cmp	r7, r3
+ 842 0088 66D3     		bcc	.L43
+ 843              	.L37:
+ 185:Core/Src/ad9613.c ****     {
+ 186:Core/Src/ad9613.c ****         D(d, "WARNING: below the 40 MSPS minimum; dynamic performance\r\n");
+ 187:Core/Src/ad9613.c ****         D(d, "         degrades at clock rates under 40 MSPS\r\n");
+ 188:Core/Src/ad9613.c ****     }
+ 189:Core/Src/ad9613.c **** 
+ 190:Core/Src/ad9613.c ****     /* 3. Both channels receive the following writes. */
+ 191:Core/Src/ad9613.c ****     ad9613_write(d, AD9613_CHAN_INDEX, AD9613_CHAN_BOTH);
+ 844              		.loc 1 191 5 is_stmt 1 view .LVU217
+ 845 008a 0322     		movs	r2, #3
+ 846 008c 0521     		movs	r1, #5
+ 847 008e 2046     		mov	r0, r4
+ 848 0090 FFF7FEFF 		bl	ad9613_write
+ 849              	.LVL79:
+ 192:Core/Src/ad9613.c **** 
+ 193:Core/Src/ad9613.c ****     /* 4. Normal power, duty cycle stabilizer on.
+ 194:Core/Src/ad9613.c ****      *    The DCS retimes the nonsampling edge to give an internal 50%
+ 195:Core/Src/ad9613.c ****      *    duty cycle, which matters because this part uses both clock
+ 196:Core/Src/ad9613.c ****      *    edges internally. It does not reduce rising-edge jitter. */
+ 197:Core/Src/ad9613.c ****     ad9613_write(d, AD9613_POWER_MODES, AD9613_PWR_NORMAL);
+ 850              		.loc 1 197 5 view .LVU218
+ 851 0094 0022     		movs	r2, #0
+ 852 0096 0821     		movs	r1, #8
+ 853 0098 2046     		mov	r0, r4
+ 854 009a FFF7FEFF 		bl	ad9613_write
+ 855              	.LVL80:
+ 198:Core/Src/ad9613.c ****     ad9613_write(d, AD9613_GLOBAL_CLOCK, AD9613_DCS_ENABLE);
+ 856              		.loc 1 198 5 view .LVU219
+ 857 009e 0122     		movs	r2, #1
+ 858 00a0 0921     		movs	r1, #9
+ 859 00a2 2046     		mov	r0, r4
+ 860 00a4 FFF7FEFF 		bl	ad9613_write
+ 861              	.LVL81:
+ 199:Core/Src/ad9613.c **** 
+ 200:Core/Src/ad9613.c ****     /* 5. Clock divider bypassed: conversion rate = CLK+/CLK- rate.
+ 201:Core/Src/ad9613.c ****      *    Any divide ratio other than 000 forces the DCS active. */
+ 202:Core/Src/ad9613.c ****     ad9613_write(d, AD9613_CLOCK_DIVIDE, AD9613_CLKDIV_1);
+ 862              		.loc 1 202 5 view .LVU220
+ 863 00a8 0022     		movs	r2, #0
+ 864 00aa 0B21     		movs	r1, #11
+ 865 00ac 2046     		mov	r0, r4
+ 866 00ae FFF7FEFF 		bl	ad9613_write
+ 867              	.LVL82:
+ 203:Core/Src/ad9613.c **** 
+ 204:Core/Src/ad9613.c ****     /* 6. Output mode: LVDS, outputs enabled, chosen data format.
+ 205:Core/Src/ad9613.c ****      *    Bit 2 set means normal (noninverted) output. */
+ 206:Core/Src/ad9613.c ****     uint8_t outmode = AD9613_OUT_NOT_INVERTED;
+ 868              		.loc 1 206 5 view .LVU221
+ 207:Core/Src/ad9613.c ****     outmode |= (format == AD9613_FORMAT_OFFSET_BINARY)
+ 869              		.loc 1 207 5 view .LVU222
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 21
+
+
+ 208:Core/Src/ad9613.c ****                    ? AD9613_FMT_OFFSET_BIN
+ 209:Core/Src/ad9613.c ****                    : AD9613_FMT_TWOS_COMP;
+ 870              		.loc 1 209 20 is_stmt 0 view .LVU223
+ 871 00b2 B8F10102 		subs	r2, r8, #1
+ 872 00b6 18BF     		it	ne
+ 873 00b8 0122     		movne	r2, #1
+ 874              	.LVL83:
+ 210:Core/Src/ad9613.c ****     ad9613_write(d, AD9613_OUTPUT_MODE, outmode);
+ 875              		.loc 1 210 5 is_stmt 1 view .LVU224
+ 876 00ba 42F00402 		orr	r2, r2, #4
+ 877              	.LVL84:
+ 878              		.loc 1 210 5 is_stmt 0 view .LVU225
+ 879 00be 1421     		movs	r1, #20
+ 880 00c0 2046     		mov	r0, r4
+ 881 00c2 FFF7FEFF 		bl	ad9613_write
+ 882              	.LVL85:
+ 211:Core/Src/ad9613.c **** 
+ 212:Core/Src/ad9613.c ****     /* 7. LVDS drive: 3.5 mA gives ANSI-644 levels (VOD 250-450 mV).
+ 213:Core/Src/ad9613.c ****      *    Drop to AD9613_LVDS_2_0MA for reduced-swing mode. */
+ 214:Core/Src/ad9613.c ****     ad9613_write(d, AD9613_OUTPUT_ADJUST, AD9613_LVDS_3_5MA);
+ 883              		.loc 1 214 5 is_stmt 1 view .LVU226
+ 884 00c6 0122     		movs	r2, #1
+ 885 00c8 1521     		movs	r1, #21
+ 886 00ca 2046     		mov	r0, r4
+ 887 00cc FFF7FEFF 		bl	ad9613_write
+ 888              	.LVL86:
+ 215:Core/Src/ad9613.c **** 
+ 216:Core/Src/ad9613.c ****     /* 8. Interleaved parallel LVDS on D0..D11 plus DCO and OR.
+ 217:Core/Src/ad9613.c ****      *    Bit 5 clear selects interleaved parallel rather than the
+ 218:Core/Src/ad9613.c ****      *    channel-multiplexed (even/odd) pinout. DCO not inverted. */
+ 219:Core/Src/ad9613.c ****     ad9613_write(d, AD9613_CLOCK_PHASE, 0x00);
+ 889              		.loc 1 219 5 view .LVU227
+ 890 00d0 0022     		movs	r2, #0
+ 891 00d2 1621     		movs	r1, #22
+ 892 00d4 2046     		mov	r0, r4
+ 893 00d6 FFF7FEFF 		bl	ad9613_write
+ 894              	.LVL87:
+ 220:Core/Src/ad9613.c ****     ad9613_write(d, AD9613_DCO_DELAY, 0x00); /* no added DCO delay */
+ 895              		.loc 1 220 5 view .LVU228
+ 896 00da 0022     		movs	r2, #0
+ 897 00dc 1721     		movs	r1, #23
+ 898 00de 2046     		mov	r0, r4
+ 899 00e0 FFF7FEFF 		bl	ad9613_write
+ 900              	.LVL88:
+ 221:Core/Src/ad9613.c **** 
+ 222:Core/Src/ad9613.c ****     /* 9. Full-scale input span 1.75 V p-p (default). */
+ 223:Core/Src/ad9613.c ****     ad9613_write(d, AD9613_INPUT_SPAN, 0x00);
+ 901              		.loc 1 223 5 view .LVU229
+ 902 00e4 0022     		movs	r2, #0
+ 903 00e6 1821     		movs	r1, #24
+ 904 00e8 2046     		mov	r0, r4
+ 905 00ea FFF7FEFF 		bl	ad9613_write
+ 906              	.LVL89:
+ 224:Core/Src/ad9613.c **** 
+ 225:Core/Src/ad9613.c ****     /* 10. No offset trim, no test pattern. */
+ 226:Core/Src/ad9613.c ****     ad9613_write(d, AD9613_OFFSET_ADJUST, 0x00);
+ 907              		.loc 1 226 5 view .LVU230
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 22
+
+
+ 908 00ee 0022     		movs	r2, #0
+ 909 00f0 1021     		movs	r1, #16
+ 910 00f2 2046     		mov	r0, r4
+ 911 00f4 FFF7FEFF 		bl	ad9613_write
+ 912              	.LVL90:
+ 227:Core/Src/ad9613.c ****     ad9613_write(d, AD9613_TEST_MODE, 0x00);
+ 913              		.loc 1 227 5 view .LVU231
+ 914 00f8 0022     		movs	r2, #0
+ 915 00fa 0D21     		movs	r1, #13
+ 916 00fc 2046     		mov	r0, r4
+ 917 00fe FFF7FEFF 		bl	ad9613_write
+ 918              	.LVL91:
+ 228:Core/Src/ad9613.c **** 
+ 229:Core/Src/ad9613.c ****     /* 11. Sync off unless multiple parts need aligning; leaving the main
+ 230:Core/Src/ad9613.c ****      *     sync buffer disabled conserves power. */
+ 231:Core/Src/ad9613.c ****     ad9613_write(d, AD9613_SYNC_CONTROL, 0x00);
+ 919              		.loc 1 231 5 view .LVU232
+ 920 0102 0022     		movs	r2, #0
+ 921 0104 3A21     		movs	r1, #58
+ 922 0106 2046     		mov	r0, r4
+ 923 0108 FFF7FEFF 		bl	ad9613_write
+ 924              	.LVL92:
+ 232:Core/Src/ad9613.c **** 
+ 233:Core/Src/ad9613.c ****     /* 12. Commit the shadowed registers. */
+ 234:Core/Src/ad9613.c ****     ad9613_transfer(d);
+ 925              		.loc 1 234 5 view .LVU233
+ 926 010c 2046     		mov	r0, r4
+ 927 010e FFF7FEFF 		bl	ad9613_transfer
+ 928              	.LVL93:
+ 235:Core/Src/ad9613.c ****     d->delay_ms(1);
+ 929              		.loc 1 235 5 view .LVU234
+ 930              		.loc 1 235 6 is_stmt 0 view .LVU235
+ 931 0112 A369     		ldr	r3, [r4, #24]
+ 932              		.loc 1 235 5 view .LVU236
+ 933 0114 0120     		movs	r0, #1
+ 934 0116 9847     		blx	r3
+ 935              	.LVL94:
+ 236:Core/Src/ad9613.c **** 
+ 237:Core/Src/ad9613.c ****     Df(d, "configured: interleaved parallel LVDS, %s, ANSI levels\r\n",
+ 936              		.loc 1 237 5 is_stmt 1 view .LVU237
+ 937 0118 B8F1010F 		cmp	r8, #1
+ 938              	.LVL95:
+ 939              		.loc 1 237 5 is_stmt 0 view .LVU238
+ 940 011c 25D0     		beq	.L44
+ 941              		.loc 1 237 5 discriminator 2 view .LVU239
+ 942 011e 194A     		ldr	r2, .L45+20
+ 943              	.L38:
+ 944              		.loc 1 237 5 discriminator 4 view .LVU240
+ 945 0120 1949     		ldr	r1, .L45+24
+ 946 0122 2046     		mov	r0, r4
+ 947 0124 FFF7FEFF 		bl	Df
+ 948              	.LVL96:
+ 238:Core/Src/ad9613.c ****        (format == AD9613_FORMAT_OFFSET_BINARY) ? "offset binary"
+ 239:Core/Src/ad9613.c ****                                                : "twos complement");
+ 240:Core/Src/ad9613.c ****     D(d, "DCO carries the data clock; OEB pin must be low for output\r\n");
+ 949              		.loc 1 240 5 is_stmt 1 view .LVU241
+ 950 0128 1849     		ldr	r1, .L45+28
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 23
+
+
+ 951 012a 2046     		mov	r0, r4
+ 952 012c FFF7FEFF 		bl	D
+ 953              	.LVL97:
+ 241:Core/Src/ad9613.c ****     return 0;
+ 954              		.loc 1 241 5 view .LVU242
+ 955              		.loc 1 241 12 is_stmt 0 view .LVU243
+ 956 0130 0020     		movs	r0, #0
+ 957              	.LVL98:
+ 958              	.L33:
+ 242:Core/Src/ad9613.c **** }
+ 959              		.loc 1 242 1 view .LVU244
+ 960 0132 02B0     		add	sp, sp, #8
+ 961              	.LCFI19:
+ 962              		.cfi_remember_state
+ 963              		.cfi_def_cfa_offset 24
+ 964              		@ sp needed
+ 965 0134 BDE8F081 		pop	{r4, r5, r6, r7, r8, pc}
+ 966              	.LVL99:
+ 967              	.L41:
+ 968              	.LCFI20:
+ 969              		.cfi_restore_state
+ 169:Core/Src/ad9613.c ****         return -1;
+ 970              		.loc 1 169 9 is_stmt 1 view .LVU245
+ 971 0138 1549     		ldr	r1, .L45+32
+ 972 013a 2046     		mov	r0, r4
+ 973 013c FFF7FEFF 		bl	D
+ 974              	.LVL100:
+ 170:Core/Src/ad9613.c ****     }
+ 975              		.loc 1 170 9 view .LVU246
+ 170:Core/Src/ad9613.c ****     }
+ 976              		.loc 1 170 16 is_stmt 0 view .LVU247
+ 977 0140 4FF0FF30 		mov	r0, #-1
+ 978 0144 F5E7     		b	.L33
+ 979              	.LVL101:
+ 980              	.L42:
+ 180:Core/Src/ad9613.c ****            (unsigned long)msps, max_msps);
+ 981              		.loc 1 180 9 is_stmt 1 view .LVU248
+ 982 0146 3346     		mov	r3, r6
+ 983 0148 2A46     		mov	r2, r5
+ 984 014a 1249     		ldr	r1, .L45+36
+ 985 014c 2046     		mov	r0, r4
+ 986 014e FFF7FEFF 		bl	Df
+ 987              	.LVL102:
+ 182:Core/Src/ad9613.c ****     }
+ 988              		.loc 1 182 9 view .LVU249
+ 182:Core/Src/ad9613.c ****     }
+ 989              		.loc 1 182 16 is_stmt 0 view .LVU250
+ 990 0152 4FF0FF30 		mov	r0, #-1
+ 991 0156 ECE7     		b	.L33
+ 992              	.L43:
+ 186:Core/Src/ad9613.c ****         D(d, "         degrades at clock rates under 40 MSPS\r\n");
+ 993              		.loc 1 186 9 is_stmt 1 view .LVU251
+ 994 0158 0F49     		ldr	r1, .L45+40
+ 995 015a 2046     		mov	r0, r4
+ 996 015c FFF7FEFF 		bl	D
+ 997              	.LVL103:
+ 187:Core/Src/ad9613.c ****     }
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 24
+
+
+ 998              		.loc 1 187 9 view .LVU252
+ 999 0160 0E49     		ldr	r1, .L45+44
+ 1000 0162 2046     		mov	r0, r4
+ 1001 0164 FFF7FEFF 		bl	D
+ 1002              	.LVL104:
+ 1003 0168 8FE7     		b	.L37
+ 1004              	.LVL105:
+ 1005              	.L44:
+ 237:Core/Src/ad9613.c ****        (format == AD9613_FORMAT_OFFSET_BINARY) ? "offset binary"
+ 1006              		.loc 1 237 5 is_stmt 0 discriminator 1 view .LVU253
+ 1007 016a 0D4A     		ldr	r2, .L45+48
+ 1008 016c D8E7     		b	.L38
+ 1009              	.L46:
+ 1010 016e 00BF     		.align	2
+ 1011              	.L45:
+ 1012 0170 20000000 		.word	.LC2
+ 1013 0174 40000000 		.word	.LC3
+ 1014 0178 83DE1B43 		.word	1125899907
+ 1015 017c 9C000000 		.word	.LC5
+ 1016 0180 005A6202 		.word	40000000
+ 1017 0184 10000000 		.word	.LC1
+ 1018 0188 68010000 		.word	.LC9
+ 1019 018c A4010000 		.word	.LC10
+ 1020 0190 64000000 		.word	.LC4
+ 1021 0194 C8000000 		.word	.LC6
+ 1022 0198 F8000000 		.word	.LC7
+ 1023 019c 34010000 		.word	.LC8
+ 1024 01a0 00000000 		.word	.LC0
+ 1025              		.cfi_endproc
+ 1026              	.LFE12:
+ 1028              		.section	.rodata.ad9613_test_pattern.str1.4,"aMS",%progbits,1
+ 1029              		.align	2
+ 1030              	.LC11:
+ 1031 0000 656E6162 		.ascii	"enabled\000"
+ 1031      6C656400 
+ 1032              		.align	2
+ 1033              	.LC12:
+ 1034 0008 6F666600 		.ascii	"off\000"
+ 1035              		.align	2
+ 1036              	.LC13:
+ 1037 000c 74657374 		.ascii	"test pattern mode 0x%02X %s\015\012\000"
+ 1037      20706174 
+ 1037      7465726E 
+ 1037      206D6F64 
+ 1037      65203078 
+ 1038              		.section	.text.ad9613_test_pattern,"ax",%progbits
+ 1039              		.align	1
+ 1040              		.global	ad9613_test_pattern
+ 1041              		.syntax unified
+ 1042              		.thumb
+ 1043              		.thumb_func
+ 1045              	ad9613_test_pattern:
+ 1046              	.LVL106:
+ 1047              	.LFB13:
+ 243:Core/Src/ad9613.c **** 
+ 244:Core/Src/ad9613.c **** int ad9613_test_pattern(ad9613_dev_t *d, uint8_t mode)
+ 245:Core/Src/ad9613.c **** {
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 25
+
+
+ 1048              		.loc 1 245 1 is_stmt 1 view -0
+ 1049              		.cfi_startproc
+ 1050              		@ args = 0, pretend = 0, frame = 0
+ 1051              		@ frame_needed = 0, uses_anonymous_args = 0
+ 1052              		.loc 1 245 1 is_stmt 0 view .LVU255
+ 1053 0000 70B5     		push	{r4, r5, r6, lr}
+ 1054              	.LCFI21:
+ 1055              		.cfi_def_cfa_offset 16
+ 1056              		.cfi_offset 4, -16
+ 1057              		.cfi_offset 5, -12
+ 1058              		.cfi_offset 6, -8
+ 1059              		.cfi_offset 14, -4
+ 1060 0002 0546     		mov	r5, r0
+ 1061 0004 0C46     		mov	r4, r1
+ 246:Core/Src/ad9613.c ****     ad9613_write(d, AD9613_CHAN_INDEX, AD9613_CHAN_BOTH);
+ 1062              		.loc 1 246 5 is_stmt 1 view .LVU256
+ 1063 0006 0322     		movs	r2, #3
+ 1064 0008 0521     		movs	r1, #5
+ 1065              	.LVL107:
+ 1066              		.loc 1 246 5 is_stmt 0 view .LVU257
+ 1067 000a FFF7FEFF 		bl	ad9613_write
+ 1068              	.LVL108:
+ 247:Core/Src/ad9613.c ****     ad9613_write(d, AD9613_TEST_MODE, (uint8_t)(mode & 0x0F));
+ 1069              		.loc 1 247 5 is_stmt 1 view .LVU258
+ 1070 000e 04F00F04 		and	r4, r4, #15
+ 1071              	.LVL109:
+ 1072              		.loc 1 247 5 is_stmt 0 view .LVU259
+ 1073 0012 2246     		mov	r2, r4
+ 1074 0014 0D21     		movs	r1, #13
+ 1075 0016 2846     		mov	r0, r5
+ 1076 0018 FFF7FEFF 		bl	ad9613_write
+ 1077              	.LVL110:
+ 248:Core/Src/ad9613.c ****     int r = ad9613_transfer(d);
+ 1078              		.loc 1 248 5 is_stmt 1 view .LVU260
+ 1079              		.loc 1 248 13 is_stmt 0 view .LVU261
+ 1080 001c 2846     		mov	r0, r5
+ 1081 001e FFF7FEFF 		bl	ad9613_transfer
+ 1082              	.LVL111:
+ 1083 0022 0646     		mov	r6, r0
+ 1084              	.LVL112:
+ 249:Core/Src/ad9613.c ****     Df(d, "test pattern mode 0x%02X %s\r\n", mode & 0x0F,
+ 1085              		.loc 1 249 5 is_stmt 1 view .LVU262
+ 1086 0024 3CB1     		cbz	r4, .L49
+ 1087              		.loc 1 249 5 is_stmt 0 discriminator 1 view .LVU263
+ 1088 0026 054B     		ldr	r3, .L51
+ 1089              	.L48:
+ 1090              		.loc 1 249 5 discriminator 4 view .LVU264
+ 1091 0028 2246     		mov	r2, r4
+ 1092 002a 0549     		ldr	r1, .L51+4
+ 1093 002c 2846     		mov	r0, r5
+ 1094              	.LVL113:
+ 1095              		.loc 1 249 5 discriminator 4 view .LVU265
+ 1096 002e FFF7FEFF 		bl	Df
+ 1097              	.LVL114:
+ 250:Core/Src/ad9613.c ****        (mode & 0x0F) ? "enabled" : "off");
+ 251:Core/Src/ad9613.c ****     return r;
+ 1098              		.loc 1 251 5 is_stmt 1 view .LVU266
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 26
+
+
+ 252:Core/Src/ad9613.c **** }
+ 1099              		.loc 1 252 1 is_stmt 0 view .LVU267
+ 1100 0032 3046     		mov	r0, r6
+ 1101 0034 70BD     		pop	{r4, r5, r6, pc}
+ 1102              	.LVL115:
+ 1103              	.L49:
+ 249:Core/Src/ad9613.c ****     Df(d, "test pattern mode 0x%02X %s\r\n", mode & 0x0F,
+ 1104              		.loc 1 249 5 discriminator 2 view .LVU268
+ 1105 0036 034B     		ldr	r3, .L51+8
+ 1106 0038 F6E7     		b	.L48
+ 1107              	.L52:
+ 1108 003a 00BF     		.align	2
+ 1109              	.L51:
+ 1110 003c 00000000 		.word	.LC11
+ 1111 0040 0C000000 		.word	.LC13
+ 1112 0044 08000000 		.word	.LC12
+ 1113              		.cfi_endproc
+ 1114              	.LFE13:
+ 1116              		.section	.rodata.ad9613_dump.str1.4,"aMS",%progbits,1
+ 1117              		.align	2
+ 1118              	.LC14:
+ 1119 0000 5B616439 		.ascii	"[ad9613 dump]\015\012\000"
+ 1119      36313320 
+ 1119      64756D70 
+ 1119      5D0D0A00 
+ 1120              		.align	2
+ 1121              	.LC15:
+ 1122 0010 20203078 		.ascii	"  0x%02X = 0x%02X\015\012\000"
+ 1122      25303258 
+ 1122      203D2030 
+ 1122      78253032 
+ 1122      580D0A00 
+ 1123              		.section	.text.ad9613_dump,"ax",%progbits
+ 1124              		.align	1
+ 1125              		.global	ad9613_dump
+ 1126              		.syntax unified
+ 1127              		.thumb
+ 1128              		.thumb_func
+ 1130              	ad9613_dump:
+ 1131              	.LVL116:
+ 1132              	.LFB14:
+ 253:Core/Src/ad9613.c **** 
+ 254:Core/Src/ad9613.c **** void ad9613_dump(ad9613_dev_t *d)
+ 255:Core/Src/ad9613.c **** {
+ 1133              		.loc 1 255 1 is_stmt 1 view -0
+ 1134              		.cfi_startproc
+ 1135              		@ args = 0, pretend = 0, frame = 8
+ 1136              		@ frame_needed = 0, uses_anonymous_args = 0
+ 1137              		.loc 1 255 1 is_stmt 0 view .LVU270
+ 1138 0000 70B5     		push	{r4, r5, r6, lr}
+ 1139              	.LCFI22:
+ 1140              		.cfi_def_cfa_offset 16
+ 1141              		.cfi_offset 4, -16
+ 1142              		.cfi_offset 5, -12
+ 1143              		.cfi_offset 6, -8
+ 1144              		.cfi_offset 14, -4
+ 1145 0002 82B0     		sub	sp, sp, #8
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 27
+
+
+ 1146              	.LCFI23:
+ 1147              		.cfi_def_cfa_offset 24
+ 1148 0004 0646     		mov	r6, r0
+ 256:Core/Src/ad9613.c ****     static const uint16_t regs[] = {
+ 1149              		.loc 1 256 5 is_stmt 1 view .LVU271
+ 257:Core/Src/ad9613.c ****         AD9613_SPI_CONFIG,
+ 258:Core/Src/ad9613.c ****         AD9613_CHIP_ID,
+ 259:Core/Src/ad9613.c ****         AD9613_CHIP_GRADE,
+ 260:Core/Src/ad9613.c ****         AD9613_CHAN_INDEX,
+ 261:Core/Src/ad9613.c ****         AD9613_POWER_MODES,
+ 262:Core/Src/ad9613.c ****         AD9613_GLOBAL_CLOCK,
+ 263:Core/Src/ad9613.c ****         AD9613_CLOCK_DIVIDE,
+ 264:Core/Src/ad9613.c ****         AD9613_TEST_MODE,
+ 265:Core/Src/ad9613.c ****         AD9613_OFFSET_ADJUST,
+ 266:Core/Src/ad9613.c ****         AD9613_OUTPUT_MODE,
+ 267:Core/Src/ad9613.c ****         AD9613_OUTPUT_ADJUST,
+ 268:Core/Src/ad9613.c ****         AD9613_CLOCK_PHASE,
+ 269:Core/Src/ad9613.c ****         AD9613_DCO_DELAY,
+ 270:Core/Src/ad9613.c ****         AD9613_INPUT_SPAN,
+ 271:Core/Src/ad9613.c ****         AD9613_SYNC_CONTROL,
+ 272:Core/Src/ad9613.c ****     };
+ 273:Core/Src/ad9613.c **** 
+ 274:Core/Src/ad9613.c ****     D(d, "[ad9613 dump]\r\n");
+ 1150              		.loc 1 274 5 view .LVU272
+ 1151 0006 0E49     		ldr	r1, .L57
+ 1152 0008 FFF7FEFF 		bl	D
+ 1153              	.LVL117:
+ 275:Core/Src/ad9613.c ****     for (unsigned i = 0; i < sizeof(regs) / sizeof(regs[0]); i++)
+ 1154              		.loc 1 275 5 view .LVU273
+ 1155              	.LBB5:
+ 1156              		.loc 1 275 10 view .LVU274
+ 1157              		.loc 1 275 19 is_stmt 0 view .LVU275
+ 1158 000c 0024     		movs	r4, #0
+ 1159              		.loc 1 275 5 view .LVU276
+ 1160 000e 13E0     		b	.L54
+ 1161              	.LVL118:
+ 1162              	.L55:
+ 1163              	.LBB6:
+ 276:Core/Src/ad9613.c ****     {
+ 277:Core/Src/ad9613.c ****         uint8_t v = 0;
+ 1164              		.loc 1 277 9 is_stmt 1 view .LVU277
+ 1165              		.loc 1 277 17 is_stmt 0 view .LVU278
+ 1166 0010 0023     		movs	r3, #0
+ 1167 0012 8DF80730 		strb	r3, [sp, #7]
+ 278:Core/Src/ad9613.c ****         ad9613_read(d, regs[i], &v);
+ 1168              		.loc 1 278 9 is_stmt 1 view .LVU279
+ 1169              		.loc 1 278 28 is_stmt 0 view .LVU280
+ 1170 0016 0B4B     		ldr	r3, .L57+4
+ 1171 0018 33F81450 		ldrh	r5, [r3, r4, lsl #1]
+ 1172              		.loc 1 278 9 view .LVU281
+ 1173 001c 0DF10702 		add	r2, sp, #7
+ 1174 0020 2946     		mov	r1, r5
+ 1175 0022 3046     		mov	r0, r6
+ 1176 0024 FFF7FEFF 		bl	ad9613_read
+ 1177              	.LVL119:
+ 279:Core/Src/ad9613.c ****         Df(d, "  0x%02X = 0x%02X\r\n", regs[i], v);
+ 1178              		.loc 1 279 9 is_stmt 1 view .LVU282
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 28
+
+
+ 1179 0028 9DF80730 		ldrb	r3, [sp, #7]	@ zero_extendqisi2
+ 1180 002c 2A46     		mov	r2, r5
+ 1181 002e 0649     		ldr	r1, .L57+8
+ 1182 0030 3046     		mov	r0, r6
+ 1183 0032 FFF7FEFF 		bl	Df
+ 1184              	.LVL120:
+ 1185              	.LBE6:
+ 275:Core/Src/ad9613.c ****     {
+ 1186              		.loc 1 275 63 discriminator 3 view .LVU283
+ 1187 0036 0134     		adds	r4, r4, #1
+ 1188              	.LVL121:
+ 1189              	.L54:
+ 275:Core/Src/ad9613.c ****     {
+ 1190              		.loc 1 275 28 discriminator 1 view .LVU284
+ 1191 0038 0E2C     		cmp	r4, #14
+ 1192 003a E9D9     		bls	.L55
+ 1193              	.LBE5:
+ 280:Core/Src/ad9613.c ****     }
+ 281:Core/Src/ad9613.c **** }...
+ 1194              		.loc 1 281 1 is_stmt 0 view .LVU285
+ 1195 003c 02B0     		add	sp, sp, #8
+ 1196              	.LCFI24:
+ 1197              		.cfi_def_cfa_offset 16
+ 1198              		@ sp needed
+ 1199 003e 70BD     		pop	{r4, r5, r6, pc}
+ 1200              	.LVL122:
+ 1201              	.L58:
+ 1202              		.loc 1 281 1 view .LVU286
+ 1203              		.align	2
+ 1204              	.L57:
+ 1205 0040 00000000 		.word	.LC14
+ 1206 0044 00000000 		.word	regs.0
+ 1207 0048 10000000 		.word	.LC15
+ 1208              		.cfi_endproc
+ 1209              	.LFE14:
+ 1211              		.section	.rodata.regs.0,"a"
+ 1212              		.align	2
+ 1215              	regs.0:
+ 1216 0000 0000     		.short	0
+ 1217 0002 0100     		.short	1
+ 1218 0004 0200     		.short	2
+ 1219 0006 0500     		.short	5
+ 1220 0008 0800     		.short	8
+ 1221 000a 0900     		.short	9
+ 1222 000c 0B00     		.short	11
+ 1223 000e 0D00     		.short	13
+ 1224 0010 1000     		.short	16
+ 1225 0012 1400     		.short	20
+ 1226 0014 1500     		.short	21
+ 1227 0016 1600     		.short	22
+ 1228 0018 1700     		.short	23
+ 1229 001a 1800     		.short	24
+ 1230 001c 3A00     		.short	58
+ 1231              		.text
+ 1232              	.Letext0:
+ 1233              		.file 2 "/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/arm-none-eabi/include/machine/_defa
+ 1234              		.file 3 "/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/arm-none-eabi/include/sys/_stdint.h
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 29
+
+
+ 1235              		.file 4 "Core/Inc/ad9613.h"
+ 1236              		.file 5 "/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/lib/gcc/arm-none-eabi/14.3.1/includ
+ 1237              		.file 6 "/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/arm-none-eabi/include/stdio.h"
+ 1238              		.file 7 "<built-in>"
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s 			page 30
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 ad9613.c
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:19     .text.D:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:24     .text.D:00000000 D
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:55     .text.shift_out:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:60     .text.shift_out:00000000 shift_out
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:137    .text.shift_in:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:142    .text.shift_in:00000000 shift_in
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:239    .text.Df:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:244    .text.Df:00000000 Df
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:318    .text.ad9613_write:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:324    .text.ad9613_write:00000000 ad9613_write
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:417    .text.ad9613_read:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:423    .text.ad9613_read:00000000 ad9613_read
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:541    .text.ad9613_transfer:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:547    .text.ad9613_transfer:00000000 ad9613_transfer
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:572    .text.ad9613_chip_id:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:578    .text.ad9613_chip_id:00000000 ad9613_chip_id
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:605    .text.ad9613_max_msps:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:611    .text.ad9613_max_msps:00000000 ad9613_max_msps
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:680    .rodata.ad9613_init_lvds.str1.4:00000000 $d
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:720    .text.ad9613_init_lvds:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:726    .text.ad9613_init_lvds:00000000 ad9613_init_lvds
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:1012   .text.ad9613_init_lvds:00000170 $d
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:1029   .rodata.ad9613_test_pattern.str1.4:00000000 $d
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:1039   .text.ad9613_test_pattern:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:1045   .text.ad9613_test_pattern:00000000 ad9613_test_pattern
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:1110   .text.ad9613_test_pattern:0000003c $d
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:1117   .rodata.ad9613_dump.str1.4:00000000 $d
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:1124   .text.ad9613_dump:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:1130   .text.ad9613_dump:00000000 ad9613_dump
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:1205   .text.ad9613_dump:00000040 $d
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:1215   .rodata.regs.0:00000000 regs.0
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccbLBZ6l.s:1212   .rodata.regs.0:00000000 $d
+
+UNDEFINED SYMBOLS
+vsnprintf

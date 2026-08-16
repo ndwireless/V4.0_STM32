@@ -1,4 +1,6 @@
-build/stm32f1xx_it.o: Core/Src/stm32f1xx_it.c Core/Inc/main.h \
+build/ad9518_port_stm32.o: Core/Src/ad9518_port_stm32.c \
+ Core/Inc/ad9518_port_stm32.h Core/Inc/ad9518.h Core/Inc/ad9518_regs.h \
+ Core/Inc/ad9613.h Core/Inc/ad9613.h \
  Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h \
  Core/Inc/stm32f1xx_hal_conf.h \
  Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc.h \
@@ -20,9 +22,12 @@ build/stm32f1xx_it.o: Core/Src/stm32f1xx_it.c Core/Inc/main.h \
  Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash_ex.h \
  Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h \
  Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_spi.h \
- Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h \
- Core/Inc/stm32f1xx_it.h
-Core/Inc/main.h:
+ Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h Core/Inc/main.h
+Core/Inc/ad9518_port_stm32.h:
+Core/Inc/ad9518.h:
+Core/Inc/ad9518_regs.h:
+Core/Inc/ad9613.h:
+Core/Inc/ad9613.h:
 Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h:
 Core/Inc/stm32f1xx_hal_conf.h:
 Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc.h:
@@ -47,4 +52,4 @@ Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash_ex.h:
 Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h:
 Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_spi.h:
 Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h:
-Core/Inc/stm32f1xx_it.h:
+Core/Inc/main.h:

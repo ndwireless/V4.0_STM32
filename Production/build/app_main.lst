@@ -1,4 +1,4 @@
-ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFlMDpl.s 			page 1
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s 			page 1
 
 
    1              		.cpu cortex-m3
@@ -18,225 +18,1052 @@ ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFlMDpl.s 			page 1
   15              	.Ltext0:
   16              		.cfi_sections	.debug_frame
   17              		.file 1 "Core/Src/app_main.c"
-  18              		.section	.text.app_main,"ax",%progbits
+  18              		.section	.text.say,"ax",%progbits
   19              		.align	1
-  20              		.global	app_main
-  21              		.syntax unified
-  22              		.thumb
-  23              		.thumb_func
-  25              	app_main:
-  26              	.LFB65:
-   1:Core/Src/app_main.c **** #include "main.h"
-   2:Core/Src/app_main.c **** #include "stm32f1xx_hal.h"
-   3:Core/Src/app_main.c **** #include "ad9518.h"
-   4:Core/Src/app_main.c **** 
-   5:Core/Src/app_main.c **** extern ad9518_dev_t ad9518;
-   6:Core/Src/app_main.c **** 
-   7:Core/Src/app_main.c **** #define AD1_CLK_HZ 250000000UL   /* channel 0 */
-   8:Core/Src/app_main.c **** #define AD2_CLK_HZ 250000000UL   /* channel 1 */
-   9:Core/Src/app_main.c **** #define SPARE_CLK_HZ 100000000UL /* channel 2 (unused) */
-  10:Core/Src/app_main.c **** 
-  11:Core/Src/app_main.c **** int app_main(void)
-  12:Core/Src/app_main.c **** {
-  27              		.loc 1 12 1 view -0
+  20              		.syntax unified
+  21              		.thumb
+  22              		.thumb_func
+  24              	say:
+  25              	.LVL0:
+  26              	.LFB68:
+   1:Core/Src/app_main.c **** #include "app_main.h"
+   2:Core/Src/app_main.c **** #include "ad9518.h"
+   3:Core/Src/app_main.c **** #include "ad9518_port_stm32.h"
+   4:Core/Src/app_main.c **** #include "ad9613.h"
+   5:Core/Src/app_main.c **** #include "stm32f1xx_hal.h"
+   6:Core/Src/app_main.c **** #include "main.h"
+   7:Core/Src/app_main.c **** #include <string.h>
+   8:Core/Src/app_main.c **** #include <stdio.h>
+   9:Core/Src/app_main.c **** 
+  10:Core/Src/app_main.c **** extern UART_HandleTypeDef huart1;
+  11:Core/Src/app_main.c **** 
+  12:Core/Src/app_main.c **** /* ---- Board parameters. Change these to match your hardware. ---- */
+  13:Core/Src/app_main.c **** #define REF_HZ 25000000UL     /* REF1 input frequency */
+  14:Core/Src/app_main.c **** #define TARGET_HZ 175000000UL /* desired output on OUT0..OUT3 */
+  15:Core/Src/app_main.c **** 
+  16:Core/Src/app_main.c **** /*
+  17:Core/Src/app_main.c ****  * VCO tuning range. This board carries an AD9518-3, whose on-chip VCO tunes
+  18:Core/Src/app_main.c ****  * from 1.75 GHz to 2.25 GHz. The planner only searches inside this window.
+  19:Core/Src/app_main.c ****  *
+  20:Core/Src/app_main.c ****  * With a 25 MHz reference the chosen plan is N=84 -> VCO 2100 MHz, VCO
+  21:Core/Src/app_main.c ****  * divider /2 -> 1050 MHz, channel divider /6 -> 175.000 MHz exactly. 2100
+  22:Core/Src/app_main.c ****  * MHz is comfortably inside the -3's range.
+  23:Core/Src/app_main.c ****  *
+  24:Core/Src/app_main.c ****  * Other grades, if the board is ever repopulated:
+  25:Core/Src/app_main.c ****  *   AD9518-0  2.55 - 2.95 GHz
+  26:Core/Src/app_main.c ****  *   AD9518-1  2.30 - 2.65 GHz (approx; confirm)
+  27:Core/Src/app_main.c ****  *   AD9518-3  1.75 - 2.25 GHz
+  28:Core/Src/app_main.c ****  */
+  29:Core/Src/app_main.c **** #define VCO_MIN_HZ 1750000000UL
+  30:Core/Src/app_main.c **** #define VCO_MAX_HZ 2250000000UL
+  31:Core/Src/app_main.c **** 
+  32:Core/Src/app_main.c **** /*
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s 			page 2
+
+
+  33:Core/Src/app_main.c ****  * Set to 1 to configure the part without requiring readback to work.
+  34:Core/Src/app_main.c ****  *
+  35:Core/Src/app_main.c ****  * Readback is only a diagnostic. If writes reach the AD9518 it will lock and
+  36:Core/Src/app_main.c ****  * produce output whether or not the readback path works. On a board where
+  37:Core/Src/app_main.c ****  * SDO is not connected and the part powers up with SDO_ACTIVE set, readback
+  38:Core/Src/app_main.c ****  * lands on an unconnected pin and SDIO stays idle high - which looks exactly
+  39:Core/Src/app_main.c ****  * like a dead part even though writes are fine. This mode programs the chip
+  40:Core/Src/app_main.c ****  * anyway so you can confirm on a scope.
+  41:Core/Src/app_main.c ****  *
+  42:Core/Src/app_main.c ****  * Check OUT0/OUT1 for the target frequency, and the LD/STATUS pin for lock.
+  43:Core/Src/app_main.c ****  */
+  44:Core/Src/app_main.c **** #define BLIND_CONFIGURE 1
+  45:Core/Src/app_main.c **** 
+  46:Core/Src/app_main.c **** static ad9518_dev_t ad9518;
+  47:Core/Src/app_main.c **** static ad9613_dev_t ad9613;
+  48:Core/Src/app_main.c **** 
+  49:Core/Src/app_main.c **** static void say(const char *s)
+  50:Core/Src/app_main.c **** {
+  27              		.loc 1 50 1 view -0
   28              		.cfi_startproc
-  29              		@ args = 0, pretend = 0, frame = 16
+  29              		@ args = 0, pretend = 0, frame = 0
   30              		@ frame_needed = 0, uses_anonymous_args = 0
-  31 0000 F0B5     		push	{r4, r5, r6, r7, lr}
-  32              	.LCFI0:
-  33              		.cfi_def_cfa_offset 20
-  34              		.cfi_offset 4, -20
-  35              		.cfi_offset 5, -16
-  36              		.cfi_offset 6, -12
-  37              		.cfi_offset 7, -8
-  38              		.cfi_offset 14, -4
-  39 0002 85B0     		sub	sp, sp, #20
-  40              	.LCFI1:
-  41              		.cfi_def_cfa_offset 40
-  13:Core/Src/app_main.c ****     /* CS lines idle HIGH (CubeMX inits them low). Park both. */
-  14:Core/Src/app_main.c ****     HAL_GPIO_WritePin(CS_CLK_GPIO_Port, CS_CLK_Pin, GPIO_PIN_SET);
-  42              		.loc 1 14 5 view .LVU1
-  43 0004 274C     		ldr	r4, .L8
-  44 0006 0122     		movs	r2, #1
-ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFlMDpl.s 			page 2
+  31              		.loc 1 50 1 is_stmt 0 view .LVU1
+  32 0000 10B5     		push	{r4, lr}
+  33              	.LCFI0:
+  34              		.cfi_def_cfa_offset 8
+  35              		.cfi_offset 4, -8
+  36              		.cfi_offset 14, -4
+  37 0002 0446     		mov	r4, r0
+  51:Core/Src/app_main.c ****     HAL_UART_Transmit(&huart1, (const uint8_t *)s, (uint16_t)strlen(s), HAL_MAX_DELAY);
+  38              		.loc 1 51 5 is_stmt 1 view .LVU2
+  39              		.loc 1 51 62 is_stmt 0 view .LVU3
+  40 0004 FFF7FEFF 		bl	strlen
+  41              	.LVL1:
+  42              		.loc 1 51 5 discriminator 1 view .LVU4
+  43 0008 4FF0FF33 		mov	r3, #-1
+  44 000c 82B2     		uxth	r2, r0
+  45 000e 2146     		mov	r1, r4
+  46 0010 0148     		ldr	r0, .L3
+  47 0012 FFF7FEFF 		bl	HAL_UART_Transmit
+  48              	.LVL2:
+  52:Core/Src/app_main.c **** }
+  49              		.loc 1 52 1 view .LVU5
+  50 0016 10BD     		pop	{r4, pc}
+  51              	.LVL3:
+  52              	.L4:
+  53              		.loc 1 52 1 view .LVU6
+  54              		.align	2
+  55              	.L3:
+  56 0018 00000000 		.word	huart1
+  57              		.cfi_endproc
+  58              	.LFE68:
+  60              		.section	.rodata.app_main.str1.4,"aMS",%progbits,1
+  61              		.align	2
+  62              	.LC0:
+  63 0000 0D0A0D0A 		.ascii	"\015\012\015\012================================\015"
+  63      3D3D3D3D 
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s 			page 3
 
 
-  45 0008 0821     		movs	r1, #8
-  46 000a 2046     		mov	r0, r4
-  47 000c FFF7FEFF 		bl	HAL_GPIO_WritePin
-  48              	.LVL0:
-  15:Core/Src/app_main.c ****     HAL_GPIO_WritePin(CS_ADC_GPIO_Port, CS_ADC_Pin, GPIO_PIN_SET);
-  49              		.loc 1 15 5 view .LVU2
-  50 0010 0122     		movs	r2, #1
-  51 0012 1021     		movs	r1, #16
-  52 0014 2046     		mov	r0, r4
-  53 0016 FFF7FEFF 		bl	HAL_GPIO_WritePin
-  54              	.LVL1:
-  16:Core/Src/app_main.c **** 
-  17:Core/Src/app_main.c ****     /* 1. Verify comms: ad9518-3 part ID should read back 0x63 */
-  18:Core/Src/app_main.c ****     uint8_t part_id = 0;
-  55              		.loc 1 18 5 view .LVU3
-  56              		.loc 1 18 13 is_stmt 0 view .LVU4
-  57 001a 0023     		movs	r3, #0
-  58 001c 8DF80F30 		strb	r3, [sp, #15]
-  19:Core/Src/app_main.c ****     ad9518_read_part_id(&ad9518, &part_id);
-  59              		.loc 1 19 5 is_stmt 1 view .LVU5
-  60 0020 0DF10F01 		add	r1, sp, #15
-  61 0024 2048     		ldr	r0, .L8+4
-  62 0026 FFF7FEFF 		bl	ad9518_read_part_id
-  63              	.LVL2:
-  20:Core/Src/app_main.c ****     int comms_ok = (part_id == 0x63);
-  64              		.loc 1 20 5 view .LVU6
-  65              		.loc 1 20 29 is_stmt 0 view .LVU7
-  66 002a 9DF80F40 		ldrb	r4, [sp, #15]	@ zero_extendqisi2
-  67              	.LVL3:
-  21:Core/Src/app_main.c **** 
-  22:Core/Src/app_main.c ****     if (comms_ok)
-  68              		.loc 1 22 5 is_stmt 1 view .LVU8
-  69              		.loc 1 22 8 is_stmt 0 view .LVU9
-  70 002e 632C     		cmp	r4, #99
-  71 0030 2FD1     		bne	.L4
-  72              	.LBB2:
-  23:Core/Src/app_main.c ****     {
-  24:Core/Src/app_main.c ****         /* 2. Reset + lock PLL to 2000 MHz VCO (0 = 3-wire mode) */
-  25:Core/Src/app_main.c ****         ad9518_init(&ad9518, 0);
-  73              		.loc 1 25 9 is_stmt 1 view .LVU10
-  74 0032 1D4D     		ldr	r5, .L8+4
-  75 0034 0021     		movs	r1, #0
-  76 0036 2846     		mov	r0, r5
-  77 0038 FFF7FEFF 		bl	ad9518_init
-  78              	.LVL4:
-  26:Core/Src/app_main.c **** 
-  27:Core/Src/app_main.c ****         /* 3. Set each channel's frequency */
-  28:Core/Src/app_main.c ****         uint32_t g0 = 0, g1 = 0, g2 = 0;
-  79              		.loc 1 28 9 view .LVU11
-  80              		.loc 1 28 18 is_stmt 0 view .LVU12
-  81 003c 0026     		movs	r6, #0
-  82 003e 0096     		str	r6, [sp]
-  83              		.loc 1 28 26 view .LVU13
-  84 0040 0196     		str	r6, [sp, #4]
-  85              		.loc 1 28 34 view .LVU14
-  86 0042 0296     		str	r6, [sp, #8]
-  29:Core/Src/app_main.c ****         ad9518_set_channel_freq(&ad9518, 0, AD1_CLK_HZ, &g0);
-ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFlMDpl.s 			page 3
+  63      3D3D3D3D 
+  63      3D3D3D3D 
+  63      3D3D3D3D 
+  64 0025 0A00     		.ascii	"\012\000"
+  65 0027 00       		.align	2
+  66              	.LC1:
+  67 0028 41443935 		.ascii	"AD9518 bring-up\015\012\000"
+  67      31382062 
+  67      72696E67 
+  67      2D75700D 
+  67      0A00
+  68 003a 0000     		.align	2
+  69              	.LC2:
+  70 003c 3D3D3D3D 		.ascii	"================================\015\012\000"
+  70      3D3D3D3D 
+  70      3D3D3D3D 
+  70      3D3D3D3D 
+  70      3D3D3D3D 
+  71 005f 00       		.align	2
+  72              	.LC3:
+  73 0060 70617274 		.ascii	"part ID implausible; sweeping bus configurations\015"
+  73      20494420 
+  73      696D706C 
+  73      61757369 
+  73      626C653B 
+  74 0091 0A00     		.ascii	"\012\000"
+  75 0093 00       		.align	2
+  76              	.LC4:
+  77 0094 0D0A00   		.ascii	"\015\012\000"
+  78 0097 00       		.align	2
+  79              	.LC5:
+  80 0098 0D0A2D2D 		.ascii	"\015\012--- readback unavailable; configuring blind"
+  80      2D207265 
+  80      61646261 
+  80      636B2075 
+  80      6E617661 
+  81 00c5 202D2D2D 		.ascii	" ---\015\012\000"
+  81      0D0A00
+  82              		.align	2
+  83              	.LC6:
+  84 00cc 57726974 		.ascii	"Writes may still be landing. Programming the part a"
+  84      6573206D 
+  84      61792073 
+  84      74696C6C 
+  84      20626520 
+  85 00ff 6E797761 		.ascii	"nyway.\015\012\000"
+  85      792E0D0A 
+  85      00
+  86              		.align	2
+  87              	.LC7:
+  88 0108 56657269 		.ascii	"Verify with a scope on OUT0/OUT1 and the LD/STATUS "
+  88      66792077 
+  88      69746820 
+  88      61207363 
+  88      6F706520 
+  89 013b 70696E2E 		.ascii	"pin.\015\012\015\012\000"
+  89      0D0A0D0A 
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s 			page 4
 
 
-  87              		.loc 1 29 9 is_stmt 1 view .LVU15
-  88 0044 194F     		ldr	r7, .L8+8
-  89 0046 6B46     		mov	r3, sp
-  90 0048 3A46     		mov	r2, r7
-  91 004a 3146     		mov	r1, r6
-  92 004c 2846     		mov	r0, r5
-  93 004e FFF7FEFF 		bl	ad9518_set_channel_freq
-  94              	.LVL5:
-  30:Core/Src/app_main.c ****         ad9518_set_channel_freq(&ad9518, 1, AD2_CLK_HZ, &g1);
-  95              		.loc 1 30 9 view .LVU16
-  96 0052 01AB     		add	r3, sp, #4
-  97 0054 3A46     		mov	r2, r7
-  98 0056 0121     		movs	r1, #1
-  99 0058 2846     		mov	r0, r5
- 100 005a FFF7FEFF 		bl	ad9518_set_channel_freq
- 101              	.LVL6:
-  31:Core/Src/app_main.c ****         ad9518_set_channel_freq(&ad9518, 2, SPARE_CLK_HZ, &g2);
- 102              		.loc 1 31 9 view .LVU17
- 103 005e 02AB     		add	r3, sp, #8
- 104 0060 134A     		ldr	r2, .L8+12
- 105 0062 0221     		movs	r1, #2
- 106 0064 2846     		mov	r0, r5
- 107 0066 FFF7FEFF 		bl	ad9518_set_channel_freq
- 108              	.LVL7:
-  32:Core/Src/app_main.c **** 
-  33:Core/Src/app_main.c ****         /* 4. Enable used outputs, disable spare */
-  34:Core/Src/app_main.c ****         ad9518_channel_enable(&ad9518, 0, 1);
- 109              		.loc 1 34 9 view .LVU18
- 110 006a 0122     		movs	r2, #1
- 111 006c 3146     		mov	r1, r6
- 112 006e 2846     		mov	r0, r5
- 113 0070 FFF7FEFF 		bl	ad9518_channel_enable
- 114              	.LVL8:
-  35:Core/Src/app_main.c ****         ad9518_channel_enable(&ad9518, 1, 1);
- 115              		.loc 1 35 9 view .LVU19
- 116 0074 0122     		movs	r2, #1
- 117 0076 1146     		mov	r1, r2
- 118 0078 2846     		mov	r0, r5
- 119 007a FFF7FEFF 		bl	ad9518_channel_enable
- 120              	.LVL9:
-  36:Core/Src/app_main.c ****         ad9518_channel_enable(&ad9518, 2, 0);
- 121              		.loc 1 36 9 view .LVU20
- 122 007e 3246     		mov	r2, r6
- 123 0080 0221     		movs	r1, #2
- 124 0082 2846     		mov	r0, r5
- 125 0084 FFF7FEFF 		bl	ad9518_channel_enable
- 126              	.LVL10:
- 127 0088 03E0     		b	.L4
- 128              	.L7:
- 129              	.LBE2:
-  37:Core/Src/app_main.c ****     }
-  38:Core/Src/app_main.c **** 
-  39:Core/Src/app_main.c ****     /* 5. Heartbeat: slow blink = OK, fast blink = SPI/comms problem */
-  40:Core/Src/app_main.c ****     while (1)
-  41:Core/Src/app_main.c ****     {
-  42:Core/Src/app_main.c ****         HAL_GPIO_TogglePin(USR1_GPIO_Port, USR1_Pin);
-  43:Core/Src/app_main.c ****         HAL_Delay(comms_ok ? 1000 : 150);
-ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFlMDpl.s 			page 4
+  89      00
+  90              		.align	2
+  91              	.LC8:
+  92 0144 0D0A436F 		.ascii	"\015\012Configuration written. Expected on OUT0..OU"
+  92      6E666967 
+  92      75726174 
+  92      696F6E20 
+  92      77726974 
+  93 0171 54333A0D 		.ascii	"T3:\015\012\000"
+  93      0A00
+  94 0177 00       		.align	2
+  95              	.LC9:
+  96 0178 2020256C 		.ascii	"  %lu Hz  (VCO %lu Hz)\015\012\000"
+  96      7520487A 
+  96      20202856 
+  96      434F2025 
+  96      6C752048 
+  97 0191 000000   		.align	2
+  98              	.LC10:
+  99 0194 49662074 		.ascii	"If the scope shows this, the part works and only re"
+  99      68652073 
+  99      636F7065 
+  99      2073686F 
+  99      77732074 
+ 100 01c7 61646261 		.ascii	"adback\015\012\000"
+ 100      636B0D0A 
+ 100      00
+ 101              		.align	2
+ 102              	.LC11:
+ 103 01d0 69732062 		.ascii	"is broken. If there is no output at all, writes are"
+ 103      726F6B65 
+ 103      6E2E2049 
+ 103      66207468 
+ 103      65726520 
+ 104 0203 206E6F74 		.ascii	" not\015\012\000"
+ 104      0D0A00
+ 105 020a 0000     		.align	2
+ 106              	.LC12:
+ 107 020c 6C616E64 		.ascii	"landing either - check AD9518 supplies and its rese"
+ 107      696E6720 
+ 107      65697468 
+ 107      6572202D 
+ 107      20636865 
+ 108 023f 74207069 		.ascii	"t pin.\015\012\000"
+ 108      6E2E0D0A 
+ 108      00
+ 109              		.align	2
+ 110              	.LC13:
+ 111 0248 70617274 		.ascii	"part ID = 0x%02X\015\012\000"
+ 111      20494420 
+ 111      3D203078 
+ 111      25303258 
+ 111      0D0A00
+ 112 025b 00       		.align	2
+ 113              	.LC14:
+ 114 025c 5741524E 		.ascii	"WARNING: bus self-test failed; configuration may no"
+ 114      494E473A 
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s 			page 5
 
 
- 130              		.loc 1 43 9 is_stmt 0 discriminator 1 view .LVU21
- 131 008a 4FF47A70 		mov	r0, #1000
- 132              	.L3:
- 133              		.loc 1 43 9 discriminator 4 view .LVU22
- 134 008e FFF7FEFF 		bl	HAL_Delay
- 135              	.LVL11:
-  40:Core/Src/app_main.c ****     {
- 136              		.loc 1 40 11 is_stmt 1 view .LVU23
- 137              	.L4:
-  40:Core/Src/app_main.c ****     {
- 138              		.loc 1 40 5 view .LVU24
-  42:Core/Src/app_main.c ****         HAL_Delay(comms_ok ? 1000 : 150);
- 139              		.loc 1 42 9 view .LVU25
- 140 0092 0121     		movs	r1, #1
- 141 0094 0748     		ldr	r0, .L8+16
- 142 0096 FFF7FEFF 		bl	HAL_GPIO_TogglePin
- 143              	.LVL12:
- 144              		.loc 1 43 9 discriminator 5 view .LVU26
- 145 009a 632C     		cmp	r4, #99
- 146 009c F5D0     		beq	.L7
- 147              		.loc 1 43 9 is_stmt 0 discriminator 2 view .LVU27
- 148 009e 9620     		movs	r0, #150
- 149 00a0 F5E7     		b	.L3
- 150              	.L9:
- 151 00a2 00BF     		.align	2
- 152              	.L8:
- 153 00a4 00080140 		.word	1073809408
- 154 00a8 00000000 		.word	ad9518
- 155 00ac 80B2E60E 		.word	250000000
- 156 00b0 00E1F505 		.word	100000000
- 157 00b4 000C0140 		.word	1073810432
- 158              		.cfi_endproc
- 159              	.LFE65:
- 161              		.text
- 162              	.Letext0:
- 163              		.file 2 "/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/arm-none-eabi/include/machine/_defa
- 164              		.file 3 "/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/arm-none-eabi/include/sys/_stdint.h
- 165              		.file 4 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xb.h"
- 166              		.file 5 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_gpio.h"
- 167              		.file 6 "Core/Inc/ad9518.h"
- 168              		.file 7 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h"
-ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFlMDpl.s 			page 5
+ 114      20627573 
+ 114      2073656C 
+ 114      662D7465 
+ 115 028f 74207374 		.ascii	"t stick\015\012\000"
+ 115      69636B0D 
+ 115      0A00
+ 116 0299 000000   		.align	2
+ 117              	.LC15:
+ 118 029c 636F6E66 		.ascii	"configuration failed\015\012\000"
+ 118      69677572 
+ 118      6174696F 
+ 118      6E206661 
+ 118      696C6564 
+ 119 02b3 00       		.align	2
+ 120              	.LC16:
+ 121 02b4 77616974 		.ascii	"waiting for PLL lock\015\012\000"
+ 121      696E6720 
+ 121      666F7220 
+ 121      504C4C20 
+ 121      6C6F636B 
+ 122 02cb 00       		.align	2
+ 123              	.LC17:
+ 124 02cc 3E3E3E20 		.ascii	">>> PLL LOCKED - outputs live <<<\015\012\000"
+ 124      504C4C20 
+ 124      4C4F434B 
+ 124      4544202D 
+ 124      206F7574 
+ 125              		.align	2
+ 126              	.LC18:
+ 127 02f0 3E3E3E20 		.ascii	">>> not locked with the default reference config <<"
+ 127      6E6F7420 
+ 127      6C6F636B 
+ 127      65642077 
+ 127      69746820 
+ 128 0323 3C0D0A00 		.ascii	"<\015\012\000"
+ 129 0327 00       		.align	2
+ 130              	.LC19:
+ 131 0328 3E3E3E20 		.ascii	">>> PLL LOCKED after reference sweep <<<\015\012\000"
+ 131      504C4C20 
+ 131      4C4F434B 
+ 131      45442061 
+ 131      66746572 
+ 132 0353 00       		.align	2
+ 133              	.LC20:
+ 134 0354 53657420 		.ascii	"Set AD9518_REF_INPUT_CFG in ad9518.h to the value a"
+ 134      41443935 
+ 134      31385F52 
+ 134      45465F49 
+ 134      4E505554 
+ 135 0387 626F7665 		.ascii	"bove\015\012\000"
+ 135      0D0A00
+ 136 038e 0000     		.align	2
+ 137              	.LC21:
+ 138 0390 736F2066 		.ascii	"so future boots lock immediately.\015\012\000"
+ 138      75747572 
+ 138      6520626F 
+ 138      6F747320 
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s 			page 6
+
+
+ 138      6C6F636B 
+ 139              		.align	2
+ 140              	.LC22:
+ 141 03b4 3E3E3E20 		.ascii	">>> still not locked - see checklist above <<<\015\012"
+ 141      7374696C 
+ 141      6C206E6F 
+ 141      74206C6F 
+ 141      636B6564 
+ 142 03e4 00       		.ascii	"\000"
+ 143 03e5 000000   		.align	2
+ 144              	.LC23:
+ 145 03e8 3E3E3E20 		.ascii	">>> ADC configured for interleaved LVDS <<<\015\012"
+ 145      41444320 
+ 145      636F6E66 
+ 145      69677572 
+ 145      65642066 
+ 146 0415 00       		.ascii	"\000"
+ 147 0416 0000     		.align	2
+ 148              	.LC24:
+ 149 0418 3E3E3E20 		.ascii	">>> ADC configuration failed <<<\015\012\000"
+ 149      41444320 
+ 149      636F6E66 
+ 149      69677572 
+ 149      6174696F 
+ 150 043b 00       		.align	2
+ 151              	.LC25:
+ 152 043c 736B6970 		.ascii	"skipping ADC config: no valid sample clock\015\012\000"
+ 152      70696E67 
+ 152      20414443 
+ 152      20636F6E 
+ 152      6669673A 
+ 153              		.section	.text.app_main,"ax",%progbits
+ 154              		.align	1
+ 155              		.global	app_main
+ 156              		.syntax unified
+ 157              		.thumb
+ 158              		.thumb_func
+ 160              	app_main:
+ 161              	.LFB69:
+  53:Core/Src/app_main.c **** 
+  54:Core/Src/app_main.c **** int app_main(void)
+  55:Core/Src/app_main.c **** {
+ 162              		.loc 1 55 1 is_stmt 1 view -0
+ 163              		.cfi_startproc
+ 164              		@ args = 0, pretend = 0, frame = 128
+ 165              		@ frame_needed = 0, uses_anonymous_args = 0
+ 166 0000 30B5     		push	{r4, r5, lr}
+ 167              	.LCFI1:
+ 168              		.cfi_def_cfa_offset 12
+ 169              		.cfi_offset 4, -12
+ 170              		.cfi_offset 5, -8
+ 171              		.cfi_offset 14, -4
+ 172 0002 A3B0     		sub	sp, sp, #140
+ 173              	.LCFI2:
+ 174              		.cfi_def_cfa_offset 152
+  56:Core/Src/app_main.c ****     HAL_Delay(250);
+ 175              		.loc 1 56 5 view .LVU8
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s 			page 7
+
+
+ 176 0004 FA20     		movs	r0, #250
+ 177 0006 FFF7FEFF 		bl	HAL_Delay
+ 178              	.LVL4:
+  57:Core/Src/app_main.c **** 
+  58:Core/Src/app_main.c ****     ad9518_port_init(&ad9518);
+ 179              		.loc 1 58 5 view .LVU9
+ 180 000a 784C     		ldr	r4, .L29
+ 181 000c 2046     		mov	r0, r4
+ 182 000e FFF7FEFF 		bl	ad9518_port_init
+ 183              	.LVL5:
+  59:Core/Src/app_main.c **** 
+  60:Core/Src/app_main.c ****     say("\r\n\r\n================================\r\n");
+ 184              		.loc 1 60 5 view .LVU10
+ 185 0012 7748     		ldr	r0, .L29+4
+ 186 0014 FFF7FEFF 		bl	say
+ 187              	.LVL6:
+  61:Core/Src/app_main.c ****     say("AD9518 bring-up\r\n");
+ 188              		.loc 1 61 5 view .LVU11
+ 189 0018 7648     		ldr	r0, .L29+8
+ 190 001a FFF7FEFF 		bl	say
+ 191              	.LVL7:
+  62:Core/Src/app_main.c ****     say("================================\r\n");
+ 192              		.loc 1 62 5 view .LVU12
+ 193 001e 7648     		ldr	r0, .L29+12
+ 194 0020 FFF7FEFF 		bl	say
+ 195              	.LVL8:
+  63:Core/Src/app_main.c **** 
+  64:Core/Src/app_main.c ****     /* 1. Establish that the serial port works in both directions before
+  65:Core/Src/app_main.c ****      *    trusting any configuration. */
+  66:Core/Src/app_main.c ****     uint8_t id = 0;
+ 196              		.loc 1 66 5 view .LVU13
+ 197              		.loc 1 66 13 is_stmt 0 view .LVU14
+ 198 0024 0023     		movs	r3, #0
+ 199 0026 8DF88730 		strb	r3, [sp, #135]
+  67:Core/Src/app_main.c ****     ad9518_soft_reset(&ad9518);
+ 200              		.loc 1 67 5 is_stmt 1 view .LVU15
+ 201 002a 2046     		mov	r0, r4
+ 202 002c FFF7FEFF 		bl	ad9518_soft_reset
+ 203              	.LVL9:
+  68:Core/Src/app_main.c ****     ad9518_part_id(&ad9518, &id);
+ 204              		.loc 1 68 5 view .LVU16
+ 205 0030 0DF18701 		add	r1, sp, #135
+ 206 0034 2046     		mov	r0, r4
+ 207 0036 FFF7FEFF 		bl	ad9518_part_id
+ 208              	.LVL10:
+  69:Core/Src/app_main.c **** 
+  70:Core/Src/app_main.c ****     if (!ad9518_part_id_valid(id))
+ 209              		.loc 1 70 5 view .LVU17
+ 210              		.loc 1 70 10 is_stmt 0 view .LVU18
+ 211 003a 9DF88700 		ldrb	r0, [sp, #135]	@ zero_extendqisi2
+ 212 003e FFF7FEFF 		bl	ad9518_part_id_valid
+ 213              	.LVL11:
+ 214              		.loc 1 70 8 discriminator 1 view .LVU19
+ 215 0042 60B9     		cbnz	r0, .L6
+  71:Core/Src/app_main.c ****     {
+  72:Core/Src/app_main.c ****         say("part ID implausible; sweeping bus configurations\r\n");
+ 216              		.loc 1 72 9 is_stmt 1 view .LVU20
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s 			page 8
+
+
+ 217 0044 6D48     		ldr	r0, .L29+16
+ 218 0046 FFF7FEFF 		bl	say
+ 219              	.LVL12:
+  73:Core/Src/app_main.c ****         if (ad9518_bus_autoprobe(&ad9518) < 0)
+ 220              		.loc 1 73 9 view .LVU21
+ 221              		.loc 1 73 13 is_stmt 0 view .LVU22
+ 222 004a 2046     		mov	r0, r4
+ 223 004c FFF7FEFF 		bl	ad9518_bus_autoprobe
+ 224              	.LVL13:
+ 225              		.loc 1 73 12 discriminator 1 view .LVU23
+ 226 0050 0028     		cmp	r0, #0
+ 227 0052 35DB     		blt	.L23
+  74:Core/Src/app_main.c ****         {
+  75:Core/Src/app_main.c ****             say("\r\n");
+  76:Core/Src/app_main.c ****             ad9518_bus_diagnose(&ad9518);
+  77:Core/Src/app_main.c **** 
+  78:Core/Src/app_main.c **** #if BLIND_CONFIGURE
+  79:Core/Src/app_main.c ****             say("\r\n--- readback unavailable; configuring blind ---\r\n");
+  80:Core/Src/app_main.c ****             say("Writes may still be landing. Programming the part anyway.\r\n");
+  81:Core/Src/app_main.c ****             say("Verify with a scope on OUT0/OUT1 and the LD/STATUS pin.\r\n\r\n");
+  82:Core/Src/app_main.c **** 
+  83:Core/Src/app_main.c ****             /* Force a known-good serial mode for a 3-wire board and go. */
+  84:Core/Src/app_main.c ****             ad9518.wire = AD9518_WIRE_3;
+  85:Core/Src/app_main.c ****             ad9518.instr = AD9518_INSTR_LONG;
+  86:Core/Src/app_main.c ****             ad9518.sample = AD9518_SAMPLE_SCLK_HIGH;
+  87:Core/Src/app_main.c ****             ad9518_soft_reset(&ad9518);
+  88:Core/Src/app_main.c **** 
+  89:Core/Src/app_main.c ****             ad9518_plan_t bp;
+  90:Core/Src/app_main.c ****             ad9518_set_frequency(&ad9518, REF_HZ, TARGET_HZ,
+  91:Core/Src/app_main.c ****                                  VCO_MIN_HZ, VCO_MAX_HZ, &bp);
+  92:Core/Src/app_main.c **** 
+  93:Core/Src/app_main.c ****             say("\r\nConfiguration written. Expected on OUT0..OUT3:\r\n");
+  94:Core/Src/app_main.c ****             {
+  95:Core/Src/app_main.c ****                 char b[80];
+  96:Core/Src/app_main.c ****                 snprintf(b, sizeof(b), "  %lu Hz  (VCO %lu Hz)\r\n",
+  97:Core/Src/app_main.c ****                          (unsigned long)bp.out_hz, (unsigned long)bp.vco_hz);
+  98:Core/Src/app_main.c ****                 say(b);
+  99:Core/Src/app_main.c ****             }
+ 100:Core/Src/app_main.c ****             say("If the scope shows this, the part works and only readback\r\n");
+ 101:Core/Src/app_main.c ****             say("is broken. If there is no output at all, writes are not\r\n");
+ 102:Core/Src/app_main.c ****             say("landing either - check AD9518 supplies and its reset pin.\r\n");
+ 103:Core/Src/app_main.c **** 
+ 104:Core/Src/app_main.c ****             for (;;)
+ 105:Core/Src/app_main.c ****             {
+ 106:Core/Src/app_main.c ****                 HAL_GPIO_TogglePin(USR1_GPIO_Port, USR1_Pin);
+ 107:Core/Src/app_main.c ****                 HAL_Delay(500);
+ 108:Core/Src/app_main.c ****             }
+ 109:Core/Src/app_main.c **** #else
+ 110:Core/Src/app_main.c ****             say("\r\nEntering pin walk: probe at the AD9518's own pins and\r\n");
+ 111:Core/Src/app_main.c ****             say("confirm each announced line actually moves there.\r\n");
+ 112:Core/Src/app_main.c ****             ad9518_port_pin_walk(); /* never returns */
+ 113:Core/Src/app_main.c **** #endif
+ 114:Core/Src/app_main.c ****         }
+ 115:Core/Src/app_main.c ****         ad9518_part_id(&ad9518, &id);
+ 228              		.loc 1 115 9 is_stmt 1 view .LVU24
+ 229 0054 0DF18701 		add	r1, sp, #135
+ 230 0058 6448     		ldr	r0, .L29
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s 			page 9
+
+
+ 231 005a FFF7FEFF 		bl	ad9518_part_id
+ 232              	.LVL14:
+ 233              	.L6:
+ 234              	.LBB2:
+ 116:Core/Src/app_main.c ****     }
+ 117:Core/Src/app_main.c **** 
+ 118:Core/Src/app_main.c ****     {
+ 119:Core/Src/app_main.c ****         char b[64];
+ 235              		.loc 1 119 9 view .LVU25
+ 120:Core/Src/app_main.c ****         snprintf(b, sizeof(b), "part ID = 0x%02X\r\n", id);
+ 236              		.loc 1 120 9 view .LVU26
+ 237 005e 08AC     		add	r4, sp, #32
+ 238 0060 9DF88730 		ldrb	r3, [sp, #135]	@ zero_extendqisi2
+ 239 0064 664A     		ldr	r2, .L29+20
+ 240 0066 4021     		movs	r1, #64
+ 241 0068 2046     		mov	r0, r4
+ 242 006a FFF7FEFF 		bl	snprintf
+ 243              	.LVL15:
+ 121:Core/Src/app_main.c ****         say(b);
+ 244              		.loc 1 121 9 view .LVU27
+ 245 006e 2046     		mov	r0, r4
+ 246 0070 FFF7FEFF 		bl	say
+ 247              	.LVL16:
+ 248              	.LBE2:
+ 122:Core/Src/app_main.c ****     }
+ 123:Core/Src/app_main.c **** 
+ 124:Core/Src/app_main.c ****     /* 2. Prove the bus round-trips data before configuring anything. */
+ 125:Core/Src/app_main.c ****     if (ad9518_bus_selftest(&ad9518) < 0)
+ 249              		.loc 1 125 5 view .LVU28
+ 250              		.loc 1 125 9 is_stmt 0 view .LVU29
+ 251 0074 5D48     		ldr	r0, .L29
+ 252 0076 FFF7FEFF 		bl	ad9518_bus_selftest
+ 253              	.LVL17:
+ 254              		.loc 1 125 8 discriminator 1 view .LVU30
+ 255 007a 0028     		cmp	r0, #0
+ 256 007c 64DB     		blt	.L24
+ 257              	.L9:
+ 126:Core/Src/app_main.c ****         say("WARNING: bus self-test failed; configuration may not stick\r\n");
+ 127:Core/Src/app_main.c **** 
+ 128:Core/Src/app_main.c ****     /* 3. Configure. */
+ 129:Core/Src/app_main.c ****     ad9518_plan_t plan;
+ 258              		.loc 1 129 5 is_stmt 1 view .LVU31
+ 130:Core/Src/app_main.c ****     if (ad9518_set_frequency(&ad9518, REF_HZ, TARGET_HZ,
+ 259              		.loc 1 130 5 view .LVU32
+ 260              		.loc 1 130 9 is_stmt 0 view .LVU33
+ 261 007e 1CAB     		add	r3, sp, #112
+ 262 0080 0193     		str	r3, [sp, #4]
+ 263 0082 604B     		ldr	r3, .L29+24
+ 264 0084 0093     		str	r3, [sp]
+ 265 0086 604B     		ldr	r3, .L29+28
+ 266 0088 604A     		ldr	r2, .L29+32
+ 267 008a 6149     		ldr	r1, .L29+36
+ 268 008c 5748     		ldr	r0, .L29
+ 269 008e FFF7FEFF 		bl	ad9518_set_frequency
+ 270              	.LVL18:
+ 271              		.loc 1 130 8 discriminator 1 view .LVU34
+ 272 0092 0028     		cmp	r0, #0
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s 			page 10
+
+
+ 273 0094 5CDB     		blt	.L25
+ 274              	.L10:
+ 131:Core/Src/app_main.c ****                              VCO_MIN_HZ, VCO_MAX_HZ, &plan) < 0)
+ 132:Core/Src/app_main.c ****     {
+ 133:Core/Src/app_main.c ****         say("configuration failed\r\n");
+ 134:Core/Src/app_main.c ****     }
+ 135:Core/Src/app_main.c **** 
+ 136:Core/Src/app_main.c ****     /* 4. Report what the part actually holds. */
+ 137:Core/Src/app_main.c ****     ad9518_dump(&ad9518);
+ 275              		.loc 1 137 5 is_stmt 1 view .LVU35
+ 276 0096 5548     		ldr	r0, .L29
+ 277 0098 FFF7FEFF 		bl	ad9518_dump
+ 278              	.LVL19:
+ 138:Core/Src/app_main.c **** 
+ 139:Core/Src/app_main.c ****     /* 5. Wait for lock. */
+ 140:Core/Src/app_main.c ****     say("waiting for PLL lock\r\n");
+ 279              		.loc 1 140 5 view .LVU36
+ 280 009c 5D48     		ldr	r0, .L29+40
+ 281 009e FFF7FEFF 		bl	say
+ 282              	.LVL20:
+ 141:Core/Src/app_main.c ****     int locked = 0;
+ 283              		.loc 1 141 5 view .LVU37
+ 142:Core/Src/app_main.c ****     for (int i = 0; i < 20; i++)
+ 284              		.loc 1 142 5 view .LVU38
+ 285              	.LBB3:
+ 286              		.loc 1 142 10 view .LVU39
+ 287              		.loc 1 142 14 is_stmt 0 view .LVU40
+ 288 00a2 0025     		movs	r5, #0
+ 289              	.LBE3:
+ 141:Core/Src/app_main.c ****     int locked = 0;
+ 290              		.loc 1 141 9 view .LVU41
+ 291 00a4 2C46     		mov	r4, r5
+ 292              	.LVL21:
+ 293              	.L11:
+ 294              	.LBB4:
+ 295              		.loc 1 142 23 is_stmt 1 discriminator 1 view .LVU42
+ 296 00a6 132D     		cmp	r5, #19
+ 297 00a8 56DC     		bgt	.L12
+ 143:Core/Src/app_main.c ****     {
+ 144:Core/Src/app_main.c ****         locked = ad9518_locked(&ad9518);
+ 298              		.loc 1 144 9 view .LVU43
+ 299              		.loc 1 144 18 is_stmt 0 view .LVU44
+ 300 00aa 5048     		ldr	r0, .L29
+ 301 00ac FFF7FEFF 		bl	ad9518_locked
+ 302              	.LVL22:
+ 303 00b0 0446     		mov	r4, r0
+ 304              	.LVL23:
+ 145:Core/Src/app_main.c ****         if (locked == 1)
+ 305              		.loc 1 145 9 is_stmt 1 view .LVU45
+ 306              		.loc 1 145 12 is_stmt 0 view .LVU46
+ 307 00b2 0128     		cmp	r0, #1
+ 308 00b4 50D0     		beq	.L12
+ 146:Core/Src/app_main.c ****             break;
+ 147:Core/Src/app_main.c ****         HAL_Delay(100);
+ 309              		.loc 1 147 9 is_stmt 1 view .LVU47
+ 310 00b6 6420     		movs	r0, #100
+ 311              	.LVL24:
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s 			page 11
+
+
+ 312              		.loc 1 147 9 is_stmt 0 view .LVU48
+ 313 00b8 FFF7FEFF 		bl	HAL_Delay
+ 314              	.LVL25:
+ 142:Core/Src/app_main.c ****     {
+ 315              		.loc 1 142 30 is_stmt 1 discriminator 2 view .LVU49
+ 316 00bc 0135     		adds	r5, r5, #1
+ 317              	.LVL26:
+ 142:Core/Src/app_main.c ****     {
+ 318              		.loc 1 142 30 is_stmt 0 discriminator 2 view .LVU50
+ 319 00be F2E7     		b	.L11
+ 320              	.LVL27:
+ 321              	.L23:
+ 142:Core/Src/app_main.c ****     {
+ 322              		.loc 1 142 30 discriminator 2 view .LVU51
+ 323              	.LBE4:
+ 324              	.LBB5:
+  75:Core/Src/app_main.c ****             ad9518_bus_diagnose(&ad9518);
+ 325              		.loc 1 75 13 is_stmt 1 view .LVU52
+ 326 00c0 5548     		ldr	r0, .L29+44
+ 327 00c2 FFF7FEFF 		bl	say
+ 328              	.LVL28:
+  76:Core/Src/app_main.c **** 
+ 329              		.loc 1 76 13 view .LVU53
+ 330 00c6 2046     		mov	r0, r4
+ 331 00c8 FFF7FEFF 		bl	ad9518_bus_diagnose
+ 332              	.LVL29:
+  79:Core/Src/app_main.c ****             say("Writes may still be landing. Programming the part anyway.\r\n");
+ 333              		.loc 1 79 13 view .LVU54
+ 334 00cc 5348     		ldr	r0, .L29+48
+ 335 00ce FFF7FEFF 		bl	say
+ 336              	.LVL30:
+  80:Core/Src/app_main.c ****             say("Verify with a scope on OUT0/OUT1 and the LD/STATUS pin.\r\n\r\n");
+ 337              		.loc 1 80 13 view .LVU55
+ 338 00d2 5348     		ldr	r0, .L29+52
+ 339 00d4 FFF7FEFF 		bl	say
+ 340              	.LVL31:
+  81:Core/Src/app_main.c **** 
+ 341              		.loc 1 81 13 view .LVU56
+ 342 00d8 5248     		ldr	r0, .L29+56
+ 343 00da FFF7FEFF 		bl	say
+ 344              	.LVL32:
+  84:Core/Src/app_main.c ****             ad9518.instr = AD9518_INSTR_LONG;
+ 345              		.loc 1 84 13 view .LVU57
+  84:Core/Src/app_main.c ****             ad9518.instr = AD9518_INSTR_LONG;
+ 346              		.loc 1 84 25 is_stmt 0 view .LVU58
+ 347 00de 0023     		movs	r3, #0
+ 348 00e0 84F82430 		strb	r3, [r4, #36]
+  85:Core/Src/app_main.c ****             ad9518.sample = AD9518_SAMPLE_SCLK_HIGH;
+ 349              		.loc 1 85 13 is_stmt 1 view .LVU59
+  85:Core/Src/app_main.c ****             ad9518.sample = AD9518_SAMPLE_SCLK_HIGH;
+ 350              		.loc 1 85 26 is_stmt 0 view .LVU60
+ 351 00e4 84F82630 		strb	r3, [r4, #38]
+  86:Core/Src/app_main.c ****             ad9518_soft_reset(&ad9518);
+ 352              		.loc 1 86 13 is_stmt 1 view .LVU61
+  86:Core/Src/app_main.c ****             ad9518_soft_reset(&ad9518);
+ 353              		.loc 1 86 27 is_stmt 0 view .LVU62
+ 354 00e8 84F82530 		strb	r3, [r4, #37]
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s 			page 12
+
+
+  87:Core/Src/app_main.c **** 
+ 355              		.loc 1 87 13 is_stmt 1 view .LVU63
+ 356 00ec 2046     		mov	r0, r4
+ 357 00ee FFF7FEFF 		bl	ad9518_soft_reset
+ 358              	.LVL33:
+  89:Core/Src/app_main.c ****             ad9518_set_frequency(&ad9518, REF_HZ, TARGET_HZ,
+ 359              		.loc 1 89 13 view .LVU64
+  90:Core/Src/app_main.c ****                                  VCO_MIN_HZ, VCO_MAX_HZ, &bp);
+ 360              		.loc 1 90 13 view .LVU65
+ 361 00f2 03AB     		add	r3, sp, #12
+ 362 00f4 0193     		str	r3, [sp, #4]
+ 363 00f6 434B     		ldr	r3, .L29+24
+ 364 00f8 0093     		str	r3, [sp]
+ 365 00fa 434B     		ldr	r3, .L29+28
+ 366 00fc 434A     		ldr	r2, .L29+32
+ 367 00fe 4449     		ldr	r1, .L29+36
+ 368 0100 2046     		mov	r0, r4
+ 369 0102 FFF7FEFF 		bl	ad9518_set_frequency
+ 370              	.LVL34:
+  93:Core/Src/app_main.c ****             {
+ 371              		.loc 1 93 13 view .LVU66
+ 372 0106 4848     		ldr	r0, .L29+60
+ 373 0108 FFF7FEFF 		bl	say
+ 374              	.LVL35:
+ 375              	.LBB6:
+  95:Core/Src/app_main.c ****                 snprintf(b, sizeof(b), "  %lu Hz  (VCO %lu Hz)\r\n",
+ 376              		.loc 1 95 17 view .LVU67
+  96:Core/Src/app_main.c ****                          (unsigned long)bp.out_hz, (unsigned long)bp.vco_hz);
+ 377              		.loc 1 96 17 view .LVU68
+ 378 010c 08AC     		add	r4, sp, #32
+ 379 010e 069B     		ldr	r3, [sp, #24]
+ 380 0110 0093     		str	r3, [sp]
+ 381 0112 079B     		ldr	r3, [sp, #28]
+ 382 0114 454A     		ldr	r2, .L29+64
+ 383 0116 5021     		movs	r1, #80
+ 384 0118 2046     		mov	r0, r4
+ 385 011a FFF7FEFF 		bl	snprintf
+ 386              	.LVL36:
+  98:Core/Src/app_main.c ****             }
+ 387              		.loc 1 98 17 view .LVU69
+ 388 011e 2046     		mov	r0, r4
+ 389 0120 FFF7FEFF 		bl	say
+ 390              	.LVL37:
+ 391              	.LBE6:
+ 100:Core/Src/app_main.c ****             say("is broken. If there is no output at all, writes are not\r\n");
+ 392              		.loc 1 100 13 view .LVU70
+ 393 0124 4248     		ldr	r0, .L29+68
+ 394 0126 FFF7FEFF 		bl	say
+ 395              	.LVL38:
+ 101:Core/Src/app_main.c ****             say("landing either - check AD9518 supplies and its reset pin.\r\n");
+ 396              		.loc 1 101 13 view .LVU71
+ 397 012a 4248     		ldr	r0, .L29+72
+ 398 012c FFF7FEFF 		bl	say
+ 399              	.LVL39:
+ 102:Core/Src/app_main.c **** 
+ 400              		.loc 1 102 13 view .LVU72
+ 401 0130 4148     		ldr	r0, .L29+76
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s 			page 13
+
+
+ 402 0132 FFF7FEFF 		bl	say
+ 403              	.LVL40:
+ 404              	.L8:
+ 104:Core/Src/app_main.c ****             {
+ 405              		.loc 1 104 13 view .LVU73
+ 106:Core/Src/app_main.c ****                 HAL_Delay(500);
+ 406              		.loc 1 106 17 view .LVU74
+ 407 0136 0121     		movs	r1, #1
+ 408 0138 4048     		ldr	r0, .L29+80
+ 409 013a FFF7FEFF 		bl	HAL_GPIO_TogglePin
+ 410              	.LVL41:
+ 107:Core/Src/app_main.c ****             }
+ 411              		.loc 1 107 17 discriminator 1 view .LVU75
+ 412 013e 4FF4FA70 		mov	r0, #500
+ 413 0142 FFF7FEFF 		bl	HAL_Delay
+ 414              	.LVL42:
+ 104:Core/Src/app_main.c ****             {
+ 415              		.loc 1 104 13 view .LVU76
+ 416 0146 F6E7     		b	.L8
+ 417              	.L24:
+ 418              	.LBE5:
+ 126:Core/Src/app_main.c **** 
+ 419              		.loc 1 126 9 view .LVU77
+ 420 0148 3D48     		ldr	r0, .L29+84
+ 421 014a FFF7FEFF 		bl	say
+ 422              	.LVL43:
+ 423 014e 96E7     		b	.L9
+ 424              	.L25:
+ 133:Core/Src/app_main.c ****     }
+ 425              		.loc 1 133 9 view .LVU78
+ 426 0150 3C48     		ldr	r0, .L29+88
+ 427 0152 FFF7FEFF 		bl	say
+ 428              	.LVL44:
+ 429 0156 9EE7     		b	.L10
+ 430              	.LVL45:
+ 431              	.L12:
+ 148:Core/Src/app_main.c ****     }
+ 149:Core/Src/app_main.c **** 
+ 150:Core/Src/app_main.c ****     if (locked == 1)
+ 432              		.loc 1 150 5 view .LVU79
+ 433              		.loc 1 150 8 is_stmt 0 view .LVU80
+ 434 0158 012C     		cmp	r4, #1
+ 435 015a 14D0     		beq	.L26
+ 151:Core/Src/app_main.c ****     {
+ 152:Core/Src/app_main.c ****         say(">>> PLL LOCKED - outputs live <<<\r\n");
+ 153:Core/Src/app_main.c ****     }
+ 154:Core/Src/app_main.c ****     else
+ 155:Core/Src/app_main.c ****     {
+ 156:Core/Src/app_main.c ****         say(">>> not locked with the default reference config <<<\r\n");
+ 436              		.loc 1 156 9 is_stmt 1 view .LVU81
+ 437 015c 3A48     		ldr	r0, .L29+92
+ 438 015e FFF7FEFF 		bl	say
+ 439              	.LVL46:
+ 157:Core/Src/app_main.c ****         if (ad9518_ref_config_sweep(&ad9518, 30) == 0)
+ 440              		.loc 1 157 9 view .LVU82
+ 441              		.loc 1 157 13 is_stmt 0 view .LVU83
+ 442 0162 1E21     		movs	r1, #30
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s 			page 14
+
+
+ 443 0164 2148     		ldr	r0, .L29
+ 444 0166 FFF7FEFF 		bl	ad9518_ref_config_sweep
+ 445              	.LVL47:
+ 446              		.loc 1 157 12 discriminator 1 view .LVU84
+ 447 016a A8B9     		cbnz	r0, .L16
+ 158:Core/Src/app_main.c ****         {
+ 159:Core/Src/app_main.c ****             say(">>> PLL LOCKED after reference sweep <<<\r\n");
+ 448              		.loc 1 159 13 is_stmt 1 view .LVU85
+ 449 016c 3748     		ldr	r0, .L29+96
+ 450 016e FFF7FEFF 		bl	say
+ 451              	.LVL48:
+ 160:Core/Src/app_main.c ****             say("Set AD9518_REF_INPUT_CFG in ad9518.h to the value above\r\n");
+ 452              		.loc 1 160 13 view .LVU86
+ 453 0172 3748     		ldr	r0, .L29+100
+ 454 0174 FFF7FEFF 		bl	say
+ 455              	.LVL49:
+ 161:Core/Src/app_main.c ****             say("so future boots lock immediately.\r\n");
+ 456              		.loc 1 161 13 view .LVU87
+ 457 0178 3648     		ldr	r0, .L29+104
+ 458 017a FFF7FEFF 		bl	say
+ 459              	.LVL50:
+ 162:Core/Src/app_main.c ****             ad9518_dump(&ad9518);
+ 460              		.loc 1 162 13 view .LVU88
+ 461 017e 1B48     		ldr	r0, .L29
+ 462 0180 FFF7FEFF 		bl	ad9518_dump
+ 463              	.LVL51:
+ 464 0184 02E0     		b	.L15
+ 465              	.L26:
+ 152:Core/Src/app_main.c ****     }
+ 466              		.loc 1 152 9 view .LVU89
+ 467 0186 3448     		ldr	r0, .L29+108
+ 468 0188 FFF7FEFF 		bl	say
+ 469              	.LVL52:
+ 470              	.L15:
+ 163:Core/Src/app_main.c ****         }
+ 164:Core/Src/app_main.c ****         else
+ 165:Core/Src/app_main.c ****         {
+ 166:Core/Src/app_main.c ****             say(">>> still not locked - see checklist above <<<\r\n");
+ 167:Core/Src/app_main.c ****         }
+ 168:Core/Src/app_main.c ****     }
+ 169:Core/Src/app_main.c **** 
+ 170:Core/Src/app_main.c ****     /* ---- AD9613 ADC: sample at the clock we just generated ---- */
+ 171:Core/Src/app_main.c ****     if (locked == 1)
+ 471              		.loc 1 171 5 view .LVU90
+ 472              		.loc 1 171 8 is_stmt 0 view .LVU91
+ 473 018c 012C     		cmp	r4, #1
+ 474 018e 07D0     		beq	.L27
+ 172:Core/Src/app_main.c ****     {
+ 173:Core/Src/app_main.c ****         ad9613_port_init(&ad9613);
+ 174:Core/Src/app_main.c ****         if (ad9613_init_lvds(&ad9613, TARGET_HZ,
+ 175:Core/Src/app_main.c ****                              AD9613_FORMAT_OFFSET_BINARY) == 0) // can be AD9613_FORMAT_TWOS_COMPLE
+ 176:Core/Src/app_main.c ****         {
+ 177:Core/Src/app_main.c ****             ad9613_dump(&ad9613);
+ 178:Core/Src/app_main.c ****             say(">>> ADC configured for interleaved LVDS <<<\r\n");
+ 179:Core/Src/app_main.c ****             // Uncomment to drive a known ramp for receiver bring-up:
+ 180:Core/Src/app_main.c ****             // ad9613_test_pattern(&ad9613, 0x0F); // 0x0F for ramp 0x07 for 101010
+ 181:Core/Src/app_main.c ****         }
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s 			page 15
+
+
+ 182:Core/Src/app_main.c ****         else
+ 183:Core/Src/app_main.c ****         {
+ 184:Core/Src/app_main.c ****             say(">>> ADC configuration failed <<<\r\n");
+ 185:Core/Src/app_main.c ****         }
+ 186:Core/Src/app_main.c ****     }
+ 187:Core/Src/app_main.c ****     else
+ 188:Core/Src/app_main.c ****     {
+ 189:Core/Src/app_main.c ****         say("skipping ADC config: no valid sample clock\r\n");
+ 475              		.loc 1 189 9 is_stmt 1 view .LVU92
+ 476 0190 3248     		ldr	r0, .L29+112
+ 477 0192 FFF7FEFF 		bl	say
+ 478              	.LVL53:
+ 479 0196 1BE0     		b	.L21
+ 480              	.L16:
+ 166:Core/Src/app_main.c ****         }
+ 481              		.loc 1 166 13 view .LVU93
+ 482 0198 3148     		ldr	r0, .L29+116
+ 483 019a FFF7FEFF 		bl	say
+ 484              	.LVL54:
+ 485 019e F5E7     		b	.L15
+ 486              	.L27:
+ 173:Core/Src/app_main.c ****         if (ad9613_init_lvds(&ad9613, TARGET_HZ,
+ 487              		.loc 1 173 9 view .LVU94
+ 488 01a0 304C     		ldr	r4, .L29+120
+ 489              	.LVL55:
+ 173:Core/Src/app_main.c ****         if (ad9613_init_lvds(&ad9613, TARGET_HZ,
+ 490              		.loc 1 173 9 is_stmt 0 view .LVU95
+ 491 01a2 2046     		mov	r0, r4
+ 492 01a4 FFF7FEFF 		bl	ad9613_port_init
+ 493              	.LVL56:
+ 174:Core/Src/app_main.c ****                              AD9613_FORMAT_OFFSET_BINARY) == 0) // can be AD9613_FORMAT_TWOS_COMPLE
+ 494              		.loc 1 174 9 is_stmt 1 view .LVU96
+ 174:Core/Src/app_main.c ****                              AD9613_FORMAT_OFFSET_BINARY) == 0) // can be AD9613_FORMAT_TWOS_COMPLE
+ 495              		.loc 1 174 13 is_stmt 0 view .LVU97
+ 496 01a8 0122     		movs	r2, #1
+ 497 01aa 1849     		ldr	r1, .L29+32
+ 498 01ac 2046     		mov	r0, r4
+ 499 01ae FFF7FEFF 		bl	ad9613_init_lvds
+ 500              	.LVL57:
+ 174:Core/Src/app_main.c ****                              AD9613_FORMAT_OFFSET_BINARY) == 0) // can be AD9613_FORMAT_TWOS_COMPLE
+ 501              		.loc 1 174 12 discriminator 1 view .LVU98
+ 502 01b2 30B9     		cbnz	r0, .L18
+ 177:Core/Src/app_main.c ****             say(">>> ADC configured for interleaved LVDS <<<\r\n");
+ 503              		.loc 1 177 13 is_stmt 1 view .LVU99
+ 504 01b4 2046     		mov	r0, r4
+ 505 01b6 FFF7FEFF 		bl	ad9613_dump
+ 506              	.LVL58:
+ 178:Core/Src/app_main.c ****             // Uncomment to drive a known ramp for receiver bring-up:
+ 507              		.loc 1 178 13 view .LVU100
+ 508 01ba 2B48     		ldr	r0, .L29+124
+ 509 01bc FFF7FEFF 		bl	say
+ 510              	.LVL59:
+ 511 01c0 06E0     		b	.L21
+ 512              	.L18:
+ 184:Core/Src/app_main.c ****         }
+ 513              		.loc 1 184 13 view .LVU101
+ 514 01c2 2A48     		ldr	r0, .L29+128
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s 			page 16
+
+
+ 515 01c4 FFF7FEFF 		bl	say
+ 516              	.LVL60:
+ 517 01c8 02E0     		b	.L21
+ 518              	.LVL61:
+ 519              	.L28:
+ 190:Core/Src/app_main.c ****     }
+ 191:Core/Src/app_main.c **** 
+ 192:Core/Src/app_main.c ****     /* Slow blink = ran to completion. Re-check lock periodically. */
+ 193:Core/Src/app_main.c ****     uint32_t n = 0;
+ 194:Core/Src/app_main.c ****     for (;;)
+ 195:Core/Src/app_main.c ****     {
+ 196:Core/Src/app_main.c ****         HAL_GPIO_TogglePin(USR1_GPIO_Port, USR1_Pin);
+ 197:Core/Src/app_main.c ****         HAL_Delay(500);
+ 198:Core/Src/app_main.c ****         if (++n >= 10)
+ 199:Core/Src/app_main.c ****         {
+ 200:Core/Src/app_main.c ****             n = 0;
+ 520              		.loc 1 200 13 view .LVU102
+ 201:Core/Src/app_main.c ****             ad9518_locked(&ad9518);
+ 521              		.loc 1 201 13 view .LVU103
+ 522 01ca 0848     		ldr	r0, .L29
+ 523 01cc FFF7FEFF 		bl	ad9518_locked
+ 524              	.LVL62:
+ 525              	.L21:
+ 141:Core/Src/app_main.c ****     for (int i = 0; i < 20; i++)
+ 526              		.loc 1 141 9 is_stmt 0 view .LVU104
+ 527 01d0 0024     		movs	r4, #0
+ 528              	.L20:
+ 529              	.LVL63:
+ 194:Core/Src/app_main.c ****     {
+ 530              		.loc 1 194 5 is_stmt 1 view .LVU105
+ 196:Core/Src/app_main.c ****         HAL_Delay(500);
+ 531              		.loc 1 196 9 view .LVU106
+ 532 01d2 0121     		movs	r1, #1
+ 533 01d4 1948     		ldr	r0, .L29+80
+ 534 01d6 FFF7FEFF 		bl	HAL_GPIO_TogglePin
+ 535              	.LVL64:
+ 197:Core/Src/app_main.c ****         if (++n >= 10)
+ 536              		.loc 1 197 9 view .LVU107
+ 537 01da 4FF4FA70 		mov	r0, #500
+ 538 01de FFF7FEFF 		bl	HAL_Delay
+ 539              	.LVL65:
+ 198:Core/Src/app_main.c ****         {
+ 540              		.loc 1 198 9 view .LVU108
+ 198:Core/Src/app_main.c ****         {
+ 541              		.loc 1 198 12 is_stmt 0 view .LVU109
+ 542 01e2 0134     		adds	r4, r4, #1
+ 543              	.LVL66:
+ 198:Core/Src/app_main.c ****         {
+ 544              		.loc 1 198 12 view .LVU110
+ 545 01e4 092C     		cmp	r4, #9
+ 546 01e6 F4D9     		bls	.L20
+ 547 01e8 EFE7     		b	.L28
+ 548              	.L30:
+ 549 01ea 00BF     		.align	2
+ 550              	.L29:
+ 551 01ec 00000000 		.word	ad9518
+ 552 01f0 00000000 		.word	.LC0
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s 			page 17
+
+
+ 553 01f4 28000000 		.word	.LC1
+ 554 01f8 3C000000 		.word	.LC2
+ 555 01fc 60000000 		.word	.LC3
+ 556 0200 48020000 		.word	.LC13
+ 557 0204 80461C86 		.word	-2044967296
+ 558 0208 80E14E68 		.word	1750000000
+ 559 020c C0496E0A 		.word	175000000
+ 560 0210 40787D01 		.word	25000000
+ 561 0214 B4020000 		.word	.LC16
+ 562 0218 94000000 		.word	.LC4
+ 563 021c 98000000 		.word	.LC5
+ 564 0220 CC000000 		.word	.LC6
+ 565 0224 08010000 		.word	.LC7
+ 566 0228 44010000 		.word	.LC8
+ 567 022c 78010000 		.word	.LC9
+ 568 0230 94010000 		.word	.LC10
+ 569 0234 D0010000 		.word	.LC11
+ 570 0238 0C020000 		.word	.LC12
+ 571 023c 000C0140 		.word	1073810432
+ 572 0240 5C020000 		.word	.LC14
+ 573 0244 9C020000 		.word	.LC15
+ 574 0248 F0020000 		.word	.LC18
+ 575 024c 28030000 		.word	.LC19
+ 576 0250 54030000 		.word	.LC20
+ 577 0254 90030000 		.word	.LC21
+ 578 0258 CC020000 		.word	.LC17
+ 579 025c 3C040000 		.word	.LC25
+ 580 0260 B4030000 		.word	.LC22
+ 581 0264 00000000 		.word	ad9613
+ 582 0268 E8030000 		.word	.LC23
+ 583 026c 18040000 		.word	.LC24
+ 584              		.cfi_endproc
+ 585              	.LFE69:
+ 587              		.section	.bss.ad9613,"aw",%nobits
+ 588              		.align	2
+ 591              	ad9613:
+ 592 0000 00000000 		.space	32
+ 592      00000000 
+ 592      00000000 
+ 592      00000000 
+ 592      00000000 
+ 593              		.section	.bss.ad9518,"aw",%nobits
+ 594              		.align	2
+ 597              	ad9518:
+ 598 0000 00000000 		.space	40
+ 598      00000000 
+ 598      00000000 
+ 598      00000000 
+ 598      00000000 
+ 599              		.text
+ 600              	.Letext0:
+ 601              		.file 2 "/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/arm-none-eabi/include/machine/_defa
+ 602              		.file 3 "/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/arm-none-eabi/include/sys/_stdint.h
+ 603              		.file 4 "Core/Inc/ad9518.h"
+ 604              		.file 5 "Core/Inc/ad9613.h"
+ 605              		.file 6 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xb.h"
+ 606              		.file 7 "/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/lib/gcc/arm-none-eabi/14.3.1/includ
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s 			page 18
+
+
+ 607              		.file 8 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h"
+ 608              		.file 9 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_dma.h"
+ 609              		.file 10 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h"
+ 610              		.file 11 "/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/arm-none-eabi/include/string.h"
+ 611              		.file 12 "Core/Inc/ad9518_port_stm32.h"
+ 612              		.file 13 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_gpio.h"
+ 613              		.file 14 "/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/arm-none-eabi/include/stdio.h"
+ 614              		.file 15 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h"
+ARM GAS  /var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s 			page 19
 
 
 DEFINED SYMBOLS
                             *ABS*:00000000 app_main.c
-/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFlMDpl.s:19     .text.app_main:00000000 $t
-/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFlMDpl.s:25     .text.app_main:00000000 app_main
-/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//ccFlMDpl.s:153    .text.app_main:000000a4 $d
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s:19     .text.say:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s:24     .text.say:00000000 say
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s:56     .text.say:00000018 $d
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s:61     .rodata.app_main.str1.4:00000000 $d
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s:154    .text.app_main:00000000 $t
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s:160    .text.app_main:00000000 app_main
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s:551    .text.app_main:000001ec $d
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s:597    .bss.ad9518:00000000 ad9518
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s:591    .bss.ad9613:00000000 ad9613
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s:588    .bss.ad9613:00000000 $d
+/var/folders/0g/t37nqzqx51l7sfxbqc44l9hw0000gn/T//cckxEjxB.s:594    .bss.ad9518:00000000 $d
 
 UNDEFINED SYMBOLS
-HAL_GPIO_WritePin
-ad9518_read_part_id
-ad9518_init
-ad9518_set_channel_freq
-ad9518_channel_enable
+strlen
+HAL_UART_Transmit
+huart1
 HAL_Delay
+ad9518_port_init
+ad9518_soft_reset
+ad9518_part_id
+ad9518_part_id_valid
+ad9518_bus_autoprobe
+snprintf
+ad9518_bus_selftest
+ad9518_set_frequency
+ad9518_dump
+ad9518_locked
+ad9518_bus_diagnose
 HAL_GPIO_TogglePin
-ad9518
+ad9518_ref_config_sweep
+ad9613_port_init
+ad9613_init_lvds
+ad9613_dump

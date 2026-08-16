@@ -63,6 +63,8 @@ void Error_Handler(void);
 #define CS_ADC_GPIO_Port GPIOA
 #define USR1_Pin GPIO_PIN_0
 #define USR1_GPIO_Port GPIOB
+#define RST_CLK_Pin GPIO_PIN_15
+#define RST_CLK_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 
